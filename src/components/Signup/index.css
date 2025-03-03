@@ -1,0 +1,219 @@
+.main-bg-container-for-login {
+    background-color: #DBEDF4;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 80px;
+    padding: 20px;
+}
+
+.login-container {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 600px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Custom scrollbar for the container */
+.login-container::-webkit-scrollbar {
+    width: 5px;
+}
+
+.login-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.login-container::-webkit-scrollbar-thumb {
+    background: rgba(10, 81, 78, 0.2);
+    border-radius: 4px;
+}
+
+.login-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(10, 81, 78, 0.4);
+}
+
+.login-image {
+    width: 500px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 15px;
+}
+
+.sign-in-heading {
+    color: #000000;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.form-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.label {
+    color: #000000;
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 3px;
+    margin-bottom: 2px;
+}
+
+.input-text {
+    height: 38px;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1.5px solid rgba(203, 213, 225, 0.5);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 14px;
+    color: #000000;
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.input-text:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.4);
+    border-color: #0A514E;
+    box-shadow: 0 0 0 2px rgba(10, 81, 78, 0.1);
+}
+
+select.input-text {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234299e1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 16px;
+    padding-right: 45px;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    text-align: center;
+    background: rgba(220, 53, 69, 0.1);
+    padding: 8px;
+    border-radius: 8px;
+    width: 100%;
+    margin: 5px 0;
+}
+
+.button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.button-otp {
+    background: linear-gradient(to right, #4299e1, #667eea);
+    color: white;
+    height: 38px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.button-otp:hover {
+    background: linear-gradient(to right, #3182ce, #5a67d8);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+.button-otp:active {
+    transform: translateY(0);
+}
+
+.link {
+    text-decoration: none;
+    width: 100%;
+    text-align: center;
+}
+
+.sign-up-heading {
+    color: #0A514E;
+    font-size: 14px;
+    text-align: center;
+    padding: 8px;
+    transition: color 0.3s ease;
+    font-weight: 500;
+    margin: 0;
+}
+
+.sign-up-heading:hover {
+    color: #083f3c;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1200px) {
+    .main-bg-container-for-login {
+        gap: 60px;
+    }
+
+    .login-image {
+        width: 500px;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    .main-bg-container-for-login {
+        gap: 40px;
+    }
+
+    .login-image {
+        width: 450px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .main-bg-container-for-login {
+        padding: 15px;
+    }
+
+    .login-image {
+        display: none;
+    }
+
+    .login-container {
+        padding: 20px;
+        margin: 10px;
+        max-height: 85vh;
+    }
+
+    .sign-in-heading {
+        font-size: 28px;
+        margin-bottom: 15px;
+    }
+
+    .input-text, .button-otp {
+        height: 38px;
+    }
+}

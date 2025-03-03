@@ -1,0 +1,215 @@
+.main-bg-container-for-login {
+    background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 80px;
+    padding: 20px;
+    position: relative;
+}
+
+.login-container {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.1),
+        0 1px 8px rgba(0, 0, 0, 0.06);
+    padding: 30px;
+    width: 100%;
+    max-width: 380px;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.login-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.12),
+        0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.login-image {
+    width: 550px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.login-image:hover {
+    transform: scale(1.02);
+}
+
+.image {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    object-fit: contain;
+    display: block;
+}
+
+.sign-in-heading {
+    color: #1a365d;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    text-align: center;
+    letter-spacing: -0.5px;
+}
+
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    color: #2d3748;
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.input-text {
+    height: 42px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0 16px;
+    font-size: 14px;
+    color: #2d3748;
+    transition: all 0.2s ease;
+}
+
+.input-text:focus {
+    outline: none;
+    border-color: #4299e1;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+.input-text::placeholder {
+    color: #a0aec0;
+}
+
+.error-message {
+    color: #e53e3e;
+    font-size: 14px;
+    text-align: center;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.button {
+    background: linear-gradient(to right, #4299e1, #667eea);
+    color: white;
+    height: 42px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.button:hover {
+    background: linear-gradient(to right, #3182ce, #5a67d8);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+.button:active {
+    transform: translateY(0);
+}
+
+.link {
+    text-decoration: none;
+    margin-top: 24px;
+    display: block;
+}
+
+.sign-up-heading {
+    color: #4299e1;
+    font-size: 15px;
+    text-align: center;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.sign-up-heading::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -2px;
+    left: 50%;
+    background: #4299e1;
+    transition: all 0.3s ease;
+}
+
+.sign-up-heading:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 1200px) {
+    .main-bg-container-for-login {
+        gap: 60px;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    .main-bg-container-for-login {
+        gap: 40px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .main-bg-container-for-login {
+        gap: 20px;
+    }
+    
+    .login-image {
+        display: none;
+    }
+
+    .login-container {
+        padding: 25px;
+        max-width: 340px;
+    }
+
+    .sign-in-heading {
+        font-size: 28px;
+        margin-bottom: 24px;
+    }
+}
