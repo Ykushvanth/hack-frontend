@@ -52,6 +52,138 @@ const Home = () => {
     const [extensionTime, setExtensionTime] = useState('');
     const [extendLoading, setExtendLoading] = useState(false);
 
+    // Add these new state variables
+    const [userLocation, setUserLocation] = useState(null);
+    const [distances, setDistances] = useState({});
+    const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyBYKr2fCP0ro0Wj6GxsX-bv1dpI6xp3CzQ';
+
+    // Constants for TIFAC parking coordinates
+    const TIFAC_COORDINATES = {
+        lat: 9.5750616,
+        lng: 77.6793517
+    };
+
+    // Simple distance calculation function
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Radius of the earth in km
+        const dLat = deg2rad(lat2 - lat1);
+        const dLon = deg2rad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2); 
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        const d = R * c; // Distance in km
+        return d;
+    };
+
+    const deg2rad = (deg) => {
+        return deg * (Math.PI/180);
+    };
+
+    // Get user location function
+    const getLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLoc = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    console.log('User location:', userLoc);
+                    setUserLocation(userLoc);
+                },
+                (error) => {
+                    console.error('Error getting location:', error);
+                    alert('Please enable location access to see distance information');
+                }
+            );
+        }
+    };
+
+    // Modified handleAreaChange function
+    const handleAreaChange = async (e) => {
+        const area = e.target.value;
+        console.log('Area changed to:', area);
+        
+        setFormData(prev => ({ 
+            ...prev, 
+            area,
+            parking_lot_id: ''
+        }));
+        
+        try {
+            const response = await fetch(
+                `https://exsel-backend-1.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
+            );
+            const data = await response.json();
+            console.log('Received parking lots data:', data);
+
+            if (data.success && data.parking_lots) {
+                setLocations(prev => ({ 
+                    ...prev, 
+                    parkingLots: data.parking_lots 
+                }));
+
+                if (userLocation) {
+                    data.parking_lots.forEach(lot => {
+                        console.log('Processing lot:', lot);
+                        if (lot.latitude && lot.longitude) {
+                            const distance = calculateDistance(
+                                userLocation.lat,
+                                userLocation.lng,
+                                parseFloat(lot.latitude),
+                                parseFloat(lot.longitude)
+                            );
+                            
+                            setDistances(prev => ({
+                                ...prev,
+                                [lot.id]: {
+                                    distance: distance < 1 ? 
+                                        `${Math.round(distance * 1000)} meters` : 
+                                        `${distance.toFixed(2)} km`
+                                }
+                            }));
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error in handleAreaChange:', error);
+        }
+    };
+
+    // Get user location when component mounts
+    useEffect(() => {
+        getLocation();
+    }, []);
+
+    // Calculate distance when user location changes
+    useEffect(() => {
+        if (userLocation && locations.parkingLots?.length > 0) {
+            locations.parkingLots.forEach(lot => {
+                if (lot.latitude && lot.longitude) {
+                    const distance = calculateDistance(
+                        userLocation.lat,
+                        userLocation.lng,
+                        parseFloat(lot.latitude),
+                        parseFloat(lot.longitude)
+                    );
+                    
+                    setDistances(prev => ({
+                        ...prev,
+                        [lot.id]: {
+                            distance: distance < 1 ? 
+                                `${Math.round(distance * 1000)} meters` : 
+                                `${distance.toFixed(2)} km`
+                        }
+                    }));
+                }
+            });
+        }
+    }, [userLocation, locations.parkingLots]);
+
     // Handle form input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -83,7 +215,7 @@ const Home = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:3001/api/book-slot', {
+            const response = await fetch('https://exsel-backend-1.onrender.com/api/book-slot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -158,7 +290,7 @@ const Home = () => {
                 setIsLoading(true);
                 const userId = localStorage.getItem('userData'); // Get the user ID
                 
-                const response = await fetch(`http://localhost:3001/api/user-details?userId=${userId}`, {
+                const response = await fetch(`https://exsel-backend-1.onrender.com/api/user-details?userId=${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${Cookies.get('jwt_token')}`
                     }
@@ -184,7 +316,7 @@ const Home = () => {
     useEffect(() => {
         const fetchStates = async () => {
             try {
-                const response = await fetch('http://localhost:3001/api/states');
+                const response = await fetch('https://exsel-backend-1.onrender.com/api/states');
                 const data = await response.json();
                 // Ensure we're setting an array
                 setLocations(prev => ({ ...prev, states: Array.isArray(data) ? data : [] }));
@@ -208,7 +340,7 @@ const Home = () => {
         }));
         
         try {
-            const response = await fetch(`http://localhost:3001/api/districts/${state}`);
+            const response = await fetch(`https://exsel-backend-1.onrender.com/api/districts/${state}`);
             const districts = await response.json();
             setLocations(prev => ({ 
                 ...prev, 
@@ -233,7 +365,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `http://localhost:3001/api/areas/${formData.state}/${district}`
+                `https://exsel-backend-1.onrender.com/api/areas/${formData.state}/${district}`
             );
             const areas = await response.json();
             setLocations(prev => ({ 
@@ -246,25 +378,27 @@ const Home = () => {
         }
     };
 
-    // Handle area selection
-    const handleAreaChange = async (e) => {
-        const area = e.target.value;
-        setFormData(prev => ({ 
-            ...prev, 
-            area,
-            parking_lot_id: ''
-        }));
-        
-        try {
-            const response = await fetch(
-                `http://localhost:3001/api/parking-lots/${formData.state}/${formData.district}/${area}`
-            );
-            const parkingLots = await response.json();
-            setLocations(prev => ({ ...prev, parkingLots }));
-        } catch (error) {
-            console.error('Error fetching parking lots:', error);
+    // Modified useEffect for Google Maps loading
+    useEffect(() => {
+        console.log('Loading Google Maps...');
+        if (!window.google) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+            script.async = true;
+            script.onload = () => {
+                console.log('Google Maps API loaded successfully');
+                setIsGoogleMapsLoaded(true);
+                getLocation();
+            };
+            script.onerror = (error) => {
+                console.error('Error loading Google Maps:', error);
+            };
+            document.head.appendChild(script);
+        } else {
+            console.log('Google Maps already loaded');
+            getLocation();
         }
-    };
+    }, []);
 
     const onClickLogout = () => {
         Cookies.remove('jwt_token');
@@ -547,32 +681,51 @@ const Home = () => {
                             }))}
                             required
                             disabled={!formData.area}
+                            className="parking-lot-select"
                         >
                             <option value="">Select Parking Lot</option>
                             {locations.parkingLots.map((lot) => (
-                                <option key={lot.location_id} value={lot.location_id}>
-                                    {lot.parking_lot_name} - ₹{lot.price_per_hour}/hr
+                                <option key={lot.id} value={lot.id}>
+                                    {lot.name} - ₹{lot.price_per_hour}/hr
+                                    {distances[lot.id] && ` (${distances[lot.id].distance} km away)`}
                                 </option>
                             ))}
                         </select>
-                    </div>
-                )}
 
-                {/* Show selected parking lot details */}
-                {formData.parking_lot_id && locations.parkingLots && (
-                    <div className="parking-lot-details">
-                        <h3>Parking Lot Details</h3>
-                        {locations.parkingLots
-                            .filter(lot => lot.location_id === parseInt(formData.parking_lot_id))
-                            .map(lot => (
-                                <div key={lot.location_id} className="lot-info">
-                                    <p><strong>Address:</strong> {lot.address}</p>
-                                    <p><strong>Timings:24/7</strong></p>
-                                    <p><strong>Price:</strong> ₹{lot.price_per_hour} per hour</p>
-                                    {/* <p><strong>Available Slots:</strong> {lot.available_slots}</p> */}
-                                    <p><strong>Contact:</strong> {lot.contact_number}</p>
-                                </div>
-                            ))}
+                        {/* Show selected parking lot details */}
+                        {formData.parking_lot_id && locations.parkingLots && (
+                            <div className="parking-lot-details">
+                                <h3>Parking Lot Details</h3>
+                                {locations.parkingLots
+                                    .filter(lot => lot.id.toString() === formData.parking_lot_id)
+                                    .map(lot => (
+                                        <div key={lot.id} className="lot-info">
+                                            <p><strong>Name:</strong> {lot.name}</p>
+                                            <p><strong>Address:</strong> {lot.address}</p>
+                                            <p><strong>Timings:</strong> {lot.opening_time} - {lot.closing_time}</p>
+                                            <p><strong>Price:</strong> ₹{lot.price_per_hour} per hour</p>
+                                            <p><strong>Total Slots:</strong> {lot.total_slots}</p>
+                                            <p>
+                                                <strong>Distance: </strong>
+                                                {!userLocation ? 'Getting your location...' :
+                                                 !lot.latitude || !lot.longitude ? 'Location coordinates not available' :
+                                                 !distances[lot.id] ? 'Calculating...' :
+                                                 distances[lot.id].distance}
+                                            </p>
+                                            <p>
+                                                <a 
+                                                    href={lot.url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="location-link"
+                                                >
+                                                    View on Google Maps
+                                                </a>
+                                            </p>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -707,7 +860,7 @@ const Home = () => {
                 throw new Error('User ID not found');
             }
 
-            const response = await fetch(`http://localhost:3001/api/booking-history/${userDetails.id}`);
+            const response = await fetch(`https://exsel-backend-1.onrender.com/api/booking-history/${userDetails.id}`);
             const data = await response.json();
 
             if (!response.ok) {
@@ -727,7 +880,7 @@ const Home = () => {
     const fetchAvailableSlots = async (parkingLotId, date, time) => {
         try {
             const response = await fetch(
-                `http://localhost:3001/api/available-slots/${parkingLotId}/${date}/${time}`
+                `https://exsel-backend-1.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
             );
             const data = await response.json();
             if (response.ok) {
@@ -741,7 +894,7 @@ const Home = () => {
     // Add this function to update completed bookings
     const updateCompletedBookings = async () => {
         try {
-            await fetch('http://localhost:3001/api/update-completed-bookings', {
+            await fetch('https://exsel-backend-1.onrender.com/api/update-completed-bookings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -773,7 +926,7 @@ const Home = () => {
 
         setIsCheckingAvailability(true);
         try {
-            const response = await fetch('http://localhost:3001/api/check-slot-availability', {
+            const response = await fetch('https://exsel-backend-1.onrender.com/api/check-slot-availability', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -851,7 +1004,7 @@ const Home = () => {
 
         setExtendLoading(true);
         try {
-            const response = await fetch('http://localhost:3001/api/extend-booking', {
+            const response = await fetch('https://exsel-backend-1.onrender.com/api/extend-booking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

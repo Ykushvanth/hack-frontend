@@ -755,4 +755,84 @@
 
 .cancel-btn:hover {
     background-color: #B91C1C;
+}
+
+.parking-lot-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #2d3748;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+.parking-lot-select:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+}
+
+.parking-lot-select:disabled {
+    background-color: #f7fafc;
+    cursor: not-allowed;
+}
+
+.parking-lot-details {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.lot-info {
+    display: grid;
+    gap: 10px;
+}
+
+.lot-info p {
+    margin: 0;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.lot-info strong {
+    color: #2d3748;
+    margin-right: 8px;
+}
+
+.parking-lot-details h3 {
+    color: #2d3748;
+    font-size: 16px;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.distance-info {
+    color: #4a5568;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.distance-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: #e2e8f0;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #4a5568;
+    margin-left: 8px;
+}
+
+.location-link {
+    color: #3182ce;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.location-link:hover {
+    color: #2c5282;
+    text-decoration: underline;
 } 
