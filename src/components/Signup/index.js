@@ -11,6 +11,8 @@ class SignUp extends Component {
         date_of_birth: "",
         car_number: "",
         aadhar_number: "",
+        phone_number: "",
+        email: "",
         password: "",
         confirmPassword: "",
         errorMsg: "",
@@ -24,6 +26,8 @@ class SignUp extends Component {
     onChangeDateOfBirth = event => this.setState({ date_of_birth: event.target.value })
     onChangeCarNumber = event => this.setState({ car_number: event.target.value })
     onChangeAadharNumber = event => this.setState({ aadhar_number: event.target.value })
+    onChangePhoneNumber = event => this.setState({ phone_number: event.target.value })
+    onChangeEmail = event => this.setState({ email: event.target.value })
     onChangePassword = event => this.setState({ password: event.target.value })
     onChangeConfirmPassword = event => this.setState({ confirmPassword: event.target.value })
 
@@ -46,7 +50,7 @@ class SignUp extends Component {
             delete signupData.showError;
             delete signupData.errorMsg;
 
-            const response = await fetch("https://exsel-backend-1.onrender.com/api/signup", {
+            const response = await fetch("https://exsel-backend-2.onrender.com/api/signup", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -83,6 +87,8 @@ class SignUp extends Component {
             date_of_birth,
             car_number,
             aadhar_number,
+            phone_number,
+            email,
             password,
             confirmPassword,
             showError,
@@ -189,6 +195,34 @@ class SignUp extends Component {
                                 type="text"
                                 pattern="[0-9]{12}"
                                 maxLength="12"
+                                className="input-text"
+                                required
+                            />
+                        </div>
+
+                        <div className="container">
+                            <label className="label" htmlFor="phone_number">Phone Number</label>
+                            <input
+                                value={phone_number}
+                                onChange={this.onChangePhoneNumber}
+                                placeholder="Enter 10-digit phone number"
+                                id="phone_number"
+                                type="tel"
+                                pattern="[0-9]{10}"
+                                maxLength="10"
+                                className="input-text"
+                                required
+                            />
+                        </div>
+
+                        <div className="container">
+                            <label className="label" htmlFor="email">Email</label>
+                            <input
+                                value={email}
+                                onChange={this.onChangeEmail}
+                                placeholder="Enter email address"
+                                id="email"
+                                type="email"
                                 className="input-text"
                                 required
                             />

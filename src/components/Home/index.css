@@ -385,12 +385,21 @@
 
 .no-bookings {
     text-align: center;
-    color: #64748b;
-    font-size: 15px;
-    padding: 20px;
-    background: #f8fafc;
+    padding: 40px 20px;
+    background: #f8f9fa;
     border-radius: 8px;
-    margin-top: 20px;
+    color: #64748b;
+}
+
+.no-bookings i {
+    font-size: 32px;
+    margin-bottom: 16px;
+    color: #94a3b8;
+}
+
+.no-bookings p {
+    margin: 0;
+    font-size: 16px;
 }
 
 /* Add only these new navbar styles at the top of your existing CSS file */
@@ -561,78 +570,176 @@
     margin-bottom: 24px;
 }
 
-.booking-filters {
+.booking-filter {
     display: flex;
-    gap: 10px;
-    background: #f1f5f9;
-    padding: 4px;
-    border-radius: 8px;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 0 16px;
 }
 
 .filter-btn {
     padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    border: 1px solid #0A514E;
     background: transparent;
-    color: #64748b;
+    color: #0A514E;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
 }
 
 .filter-btn:hover {
-    color: #0A514E;
+    background: #f0fdfa;
 }
 
 .filter-btn.active {
-    background: #ffffff;
-    color: #0A514E;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background: #0A514E;
+    color: white;
 }
 
 .booking-card {
     background: white;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
     border: 1px solid #e2e8f0;
 }
 
-.booking-status {
+.booking-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.booking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: 500;
-    margin-bottom: 15px;
-    display: inline-block;
 }
 
-.booking-status.completed {
+.status-badge.completed {
     background: #dcfce7;
     color: #166534;
 }
 
-.booking-status.upcoming {
-    background: #e0f2fe;
-    color: #0369a1;
+.status-badge.upcoming {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.booking-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.booking-content {
+    padding: 0 10px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 20px;
+}
+
+.detail-item {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.detail-item i {
+    color: #0A514E;
+    font-size: 16px;
+    width: 20px;
+    margin-top: 4px;
+}
+
+.detail-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-text .label {
+    color: #64748b;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-text .value {
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.location-link-container {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.location-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0A514E;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 12px;
+    background: #f0fdfa;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    width: fit-content;
+}
+
+.location-link:hover {
+    background: #ccfbf1;
+    transform: translateY(-1px);
+}
+
+.booking-actions {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
 }
 
 .extend-button {
-    background: #0ea5e9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0A514E;
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 10px 20px;
     border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 15px;
+    transition: all 0.3s ease;
+    font-weight: 500;
 }
 
 .extend-button:hover {
-    background: #0284c7;
+    background: #083f3c;
+    transform: translateY(-1px);
 }
 
 .modal-overlay {
@@ -835,4 +942,73 @@
 .location-link:hover {
     color: #2c5282;
     text-decoration: underline;
+}
+
+.update-notice {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.warning-text {
+    color: #856404;
+    margin-bottom: 10px;
+}
+
+.update-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.update-form {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+.save-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cancel-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
 } 

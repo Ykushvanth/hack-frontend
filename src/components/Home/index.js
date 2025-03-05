@@ -115,7 +115,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `https://exsel-backend-1.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
+                `https://exsel-backend-2.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
             );
             const data = await response.json();
             console.log('Received parking lots data:', data);
@@ -215,7 +215,7 @@ const Home = () => {
                 return;
             }
 
-            const response = await fetch('https://exsel-backend-1.onrender.com/api/book-slot', {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/book-slot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -290,7 +290,7 @@ const Home = () => {
                 setIsLoading(true);
                 const userId = localStorage.getItem('userData'); // Get the user ID
                 
-                const response = await fetch(`https://exsel-backend-1.onrender.com/api/user-details?userId=${userId}`, {
+                const response = await fetch(`https://exsel-backend-2.onrender.com/api/user-details?userId=${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${Cookies.get('jwt_token')}`
                     }
@@ -316,7 +316,7 @@ const Home = () => {
     useEffect(() => {
         const fetchStates = async () => {
             try {
-                const response = await fetch('https://exsel-backend-1.onrender.com/api/states');
+                const response = await fetch('https://exsel-backend-2.onrender.com/api/states');
                 const data = await response.json();
                 // Ensure we're setting an array
                 setLocations(prev => ({ ...prev, states: Array.isArray(data) ? data : [] }));
@@ -340,7 +340,7 @@ const Home = () => {
         }));
         
         try {
-            const response = await fetch(`https://exsel-backend-1.onrender.com/api/districts/${state}`);
+            const response = await fetch(`https://exsel-backend-2.onrender.com/api/districts/${state}`);
             const districts = await response.json();
             setLocations(prev => ({ 
                 ...prev, 
@@ -365,7 +365,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `https://exsel-backend-1.onrender.com/api/areas/${formData.state}/${district}`
+                `https://exsel-backend-2.onrender.com/api/areas/${formData.state}/${district}`
             );
             const areas = await response.json();
             setLocations(prev => ({ 
@@ -457,6 +457,14 @@ const Home = () => {
                         <p>{userDetails?.aadhar_number}</p>
                     </div>
                     <div className="profile-item">
+                        <span>Phone Number:</span>
+                        <p>{userDetails?.phone_number}</p>
+                    </div>
+                    <div className="profile-item">
+                        <span>Email:</span>
+                        <p>{userDetails?.email}</p>
+                    </div>
+                    <div className="profile-item">
                         <span>Created At:</span>
                         <p>{new Date(userDetails?.created_at).toLocaleDateString()}</p>
                     </div>
@@ -512,68 +520,114 @@ const Home = () => {
         const filteredBookings = filterBookings(bookingHistory);
 
         return (
-            <div className="dashboard-section">
-                <div className="booking-header">
-                    <h2>Booking History</h2>
-                    <div className="booking-filters">
-                        <button 
-                            className={`filter-btn ${bookingFilter === 'all' ? 'active' : ''}`}
-                            onClick={() => setBookingFilter('all')}
-                        >
-                            All
-                        </button>
-                        <button 
-                            className={`filter-btn ${bookingFilter === 'upcoming' ? 'active' : ''}`}
-                            onClick={() => setBookingFilter('upcoming')}
-                        >
-                            Upcoming
-                        </button>
-                        <button 
-                            className={`filter-btn ${bookingFilter === 'completed' ? 'active' : ''}`}
-                            onClick={() => setBookingFilter('completed')}
-                        >
-                            Completed
-                        </button>
-                    </div>
+            <div className="booking-history-container">
+                <h2>Booking History</h2>
+                
+                {/* Add filter buttons */}
+                <div className="booking-filter">
+                    <button 
+                        className={`filter-btn ${bookingFilter === 'all' ? 'active' : ''}`}
+                        onClick={() => setBookingFilter('all')}
+                    >
+                        All
+                    </button>
+                    <button 
+                        className={`filter-btn ${bookingFilter === 'upcoming' ? 'active' : ''}`}
+                        onClick={() => setBookingFilter('upcoming')}
+                    >
+                        Upcoming
+                    </button>
+                    <button 
+                        className={`filter-btn ${bookingFilter === 'completed' ? 'active' : ''}`}
+                        onClick={() => setBookingFilter('completed')}
+                    >
+                        Completed
+                    </button>
                 </div>
 
-                {filteredBookings.length === 0 ? (
-                    <div className="no-bookings">
-                        <p>No {bookingFilter} bookings found</p>
-                        {bookingFilter !== 'completed' && (
-                            <button 
-                                className="book-now-btn"
-                                onClick={() => setActiveTab('book')}
-                            >
-                                Book Now
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className="booking-history-grid">
-                        {filteredBookings.map((booking) => (
+                <div className="booking-cards">
+                    {filteredBookings.length > 0 ? (
+                        filteredBookings.map((booking) => (
                             <div key={booking.booking_id} className="booking-card">
-                                <div className={`booking-status ${isBookingCompleted(booking) ? 'completed' : 'upcoming'}`}>
-                                    {isBookingCompleted(booking) ? 'Completed' : 'Upcoming'}
+                                <div className="booking-header">
+                                    <div className={`status-badge ${isBookingCompleted(booking) ? 'completed' : 'upcoming'}`}>
+                                        <i className={`fas ${isBookingCompleted(booking) ? 'fa-check-circle' : 'fa-clock'}`}></i>
+                                        {isBookingCompleted(booking) ? 'Completed' : 'Upcoming'}
+                                    </div>
+                                    <div className="booking-date">
+                                        <i className="fas fa-calendar"></i>
+                                        {new Date(booking.booked_date).toLocaleDateString()}
+                                    </div>
                                 </div>
-                                <div className="booking-details">
-                                    <p><strong>Date:</strong> {booking.booked_date}</p>
-                                    <p><strong>Time:</strong> {booking.actual_arrival_time} - {booking.actual_departed_time}</p>
-                                    <p><strong>Location:</strong> {booking.parking_lot_name}</p>
-                                    <p><strong>Slot:</strong> {booking.slot_number}</p>
+                                <div className="booking-content">
+                                    <div className="booking-details">
+                                        <div className="detail-row">
+                                            <div className="detail-item">
+                                                <i className="fas fa-car"></i>
+                                                <div className="detail-text">
+                                                    <span className="label">Car Number</span>
+                                                    <span className="value">{booking.car_number}</span>
+                                                </div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <i className="fas fa-map-marker-alt"></i>
+                                                <div className="detail-text">
+                                                    <span className="label">Slot Number</span>
+                                                    <span className="value">{booking.slot_number}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="detail-row">
+                                            <div className="detail-item">
+                                                <i className="fas fa-hourglass-start"></i>
+                                                <div className="detail-text">
+                                                    <span className="label">Arrival</span>
+                                                    <span className="value">{booking.actual_arrival_time}</span>
+                                                </div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <i className="fas fa-hourglass-end"></i>
+                                                <div className="detail-text">
+                                                    <span className="label">Departure</span>
+                                                    <span className="value">{booking.actual_departed_time}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {booking.location && (
+                                            <div className="location-link-container">
+                                                <a 
+                                                    href={booking.location}
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="location-link"
+                                                >
+                                                    <i className="fas fa-location-arrow"></i>
+                                                    View in Maps
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 {!isBookingCompleted(booking) && (
-                                    <button 
-                                        className="extend-button"
-                                        onClick={() => handleExtend(booking)}
-                                    >
-                                        Extend Booking
-                                    </button>
+                                    <div className="booking-actions">
+                                        <button 
+                                            className="extend-button"
+                                            onClick={() => handleExtend(booking)}
+                                        >
+                                            <i className="fas fa-clock"></i>
+                                            Extend Booking
+                                        </button>
+                                    </div>
                                 )}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        ))
+                    ) : (
+                        <div className="no-bookings">
+                            <i className="fas fa-calendar-times"></i>
+                            <p>No {bookingFilter !== 'all' ? bookingFilter : ''} bookings found</p>
+                        </div>
+                    )}
+                </div>
 
                 {/* Extension Modal */}
                 {showExtendModal && (
@@ -860,7 +914,7 @@ const Home = () => {
                 throw new Error('User ID not found');
             }
 
-            const response = await fetch(`https://exsel-backend-1.onrender.com/api/booking-history/${userDetails.id}`);
+            const response = await fetch(`https://exsel-backend-2.onrender.com/api/booking-history/${userDetails.id}`);
             const data = await response.json();
 
             if (!response.ok) {
@@ -880,7 +934,7 @@ const Home = () => {
     const fetchAvailableSlots = async (parkingLotId, date, time) => {
         try {
             const response = await fetch(
-                `https://exsel-backend-1.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
+                `https://exsel-backend-2.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
             );
             const data = await response.json();
             if (response.ok) {
@@ -894,7 +948,7 @@ const Home = () => {
     // Add this function to update completed bookings
     const updateCompletedBookings = async () => {
         try {
-            await fetch('https://exsel-backend-1.onrender.com/api/update-completed-bookings', {
+            await fetch('/api/update-completed-bookings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -926,7 +980,7 @@ const Home = () => {
 
         setIsCheckingAvailability(true);
         try {
-            const response = await fetch('https://exsel-backend-1.onrender.com/api/check-slot-availability', {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/check-slot-availability', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1004,7 +1058,7 @@ const Home = () => {
 
         setExtendLoading(true);
         try {
-            const response = await fetch('https://exsel-backend-1.onrender.com/api/extend-booking', {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/extend-booking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
