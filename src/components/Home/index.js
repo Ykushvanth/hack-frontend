@@ -507,7 +507,90 @@ const Home = () => {
         });
     };
 
-    // Update the renderBookingHistory function
+    // Update the handleStatusUpdate function
+    const handleStatusUpdate = async (bookingId, newStatus) => {
+        try {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/update-booking-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    bookingId,
+                    status: newStatus
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update status');
+            }
+
+            // Show success message
+            alert(`Successfully marked as ${newStatus}`);
+
+            // Refresh booking history
+            fetchBookingHistory();
+
+        } catch (error) {
+            console.error('Error updating status:', error);
+            alert('Failed to update status: ' + error.message);
+        }
+    };
+
+    // Update the renderBookingStatus function
+    const renderBookingStatus = (booking) => {
+        let statusClass = 'pending';
+        let statusText = 'PENDING';
+
+        // Determine status based on booking_status and times
+        if (booking.departed_time) {
+            statusClass = 'completed';
+            statusText = 'COMPLETED';
+        } else if (booking.arrived_time) {
+            statusClass = 'in-progress';
+            statusText = 'IN PROGRESS';
+        } else {
+            statusClass = 'pending';
+            statusText = 'PENDING';
+        }
+
+        return (
+            <div className="status-update-container">
+                <div className="status-info">
+                    <span className="status-label">Current Status:</span>
+                    <span className={`status-value ${statusClass}`}>
+                        {statusText}
+                    </span>
+                </div>
+                {!booking.departed_time && new Date(booking.booked_date) <= new Date() && (
+                    <div className="status-actions">
+                        {!booking.arrived_time && (
+                            <button 
+                                className="status-btn arrive-btn"
+                                onClick={() => handleStatusUpdate(booking.booking_id, 'ARRIVED')}
+                            >
+                                <i className="fas fa-check-circle"></i>
+                                Mark as Arrived
+                            </button>
+                        )}
+                        {booking.arrived_time && !booking.departed_time && (
+                            <button 
+                                className="status-btn depart-btn"
+                                onClick={() => handleStatusUpdate(booking.booking_id, 'DEPARTED')}
+                            >
+                                <i className="fas fa-sign-out-alt"></i>
+                                Mark as Departed
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Update the booking card in renderBookingHistory
     const renderBookingHistory = () => {
         if (isLoading) {
             return <div className="loading">Loading booking history...</div>;
@@ -581,18 +664,41 @@ const Home = () => {
                                             <div className="detail-item">
                                                 <i className="fas fa-hourglass-start"></i>
                                                 <div className="detail-text">
-                                                    <span className="label">Arrival</span>
+                                                    <span className="label">Scheduled Arrival</span>
                                                     <span className="value">{booking.actual_arrival_time}</span>
+                                                    {booking.arrived_time && (
+                                                        <>
+                                                            <span className="label mt-2">Actual Arrival</span>
+                                                            <span className="value actual-time">
+                                                                {booking.arrived_time}
+                                                                {booking.arrived_time > booking.actual_arrival_time && (
+                                                                    <span className="late-badge">Late</span>
+                                                                )}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="detail-item">
                                                 <i className="fas fa-hourglass-end"></i>
                                                 <div className="detail-text">
-                                                    <span className="label">Departure</span>
+                                                    <span className="label">Scheduled Departure</span>
                                                     <span className="value">{booking.actual_departed_time}</span>
+                                                    {booking.departed_time && (
+                                                        <>
+                                                            <span className="label mt-2">Actual Departure</span>
+                                                            <span className="value actual-time">
+                                                                {booking.departed_time}
+                                                                {booking.departed_time > booking.actual_departed_time && (
+                                                                    <span className="late-badge">Overtime</span>
+                                                                )}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
+                                        {renderBookingStatus(booking)}
                                         {booking.location && (
                                             <div className="location-link-container">
                                                 <a 

@@ -692,6 +692,30 @@
     font-weight: 500;
 }
 
+.detail-text .mt-2 {
+    margin-top: 8px;
+}
+
+.detail-text .actual-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.late-badge {
+    background-color: #fee2e2;
+    color: #dc2626;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.detail-text .value.actual-time {
+    color: #2563eb;
+    font-weight: 600;
+}
+
 .location-link-container {
     margin-top: 20px;
     padding-top: 15px;
@@ -1011,4 +1035,86 @@
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
+}
+
+.status-update-container {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.status-label {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-value {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status-value.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-value.in-progress {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.status-value.completed {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.status-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.status-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-btn i {
+    font-size: 16px;
+}
+
+.arrive-btn {
+    background-color: #22c55e;
+    color: white;
+}
+
+.arrive-btn:hover {
+    background-color: #16a34a;
+}
+
+.depart-btn {
+    background-color: #6366f1;
+    color: white;
+}
+
+.depart-btn:hover {
+    background-color: #4f46e5;
 } 
