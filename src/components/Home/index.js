@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import './index.css';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -51,35 +53,89 @@ const Home = () => {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [extensionTime, setExtensionTime] = useState('');
     const [extendLoading, setExtendLoading] = useState(false);
+    const [extendBookingData, setExtendBookingData] = useState(null);
+    const [extendHours, setExtendHours] = useState(1);
+    const [extendError, setExtendError] = useState(null);
 
     // Add these new state variables
     const [userLocation, setUserLocation] = useState(null);
     const [distances, setDistances] = useState({});
     const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
-    const GOOGLE_MAPS_API_KEY = 'AIzaSyBYKr2fCP0ro0Wj6GxsX-bv1dpI6xp3CzQ';
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyBYKr2fCP0ro0Wj6GxsX-bv1dpI6xp3CzQ'; // Replace with your actual API key
 
     // Constants for TIFAC parking coordinates
     const TIFAC_COORDINATES = {
-        lat: 9.5750616,
-        lng: 77.6793517
+        latitude: 9.5750616,  // Verify this is correct
+        longitude: 77.6793517 // Verify this is correct
     };
 
-    // Simple distance calculation function
-    const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; // Radius of the earth in km
-        const dLat = deg2rad(lat2 - lat1);
-        const dLon = deg2rad(lon2 - lon1);
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2); 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        const d = R * c; // Distance in km
-        return d;
+    // Add this state for booking amount
+    const [bookingAmount, setBookingAmount] = useState({
+        amount: null,
+        duration: null
+    });
+
+    // Add state for payment
+    const [paymentProcessing, setPaymentProcessing] = useState(false);
+
+    // Add this state for parking lot details dropdown
+    const [showLotDetails, setShowLotDetails] = useState(false);
+
+    // Add this state for notifications near your other state declarations
+    const [notification, setNotification] = useState(null);
+
+    // Add these state variables near your other state declarations
+    const [showExtendTimeModal, setShowExtendTimeModal] = useState(false);
+    const [selectedBookingForExtension, setSelectedBookingForExtension] = useState(null);
+    const [extensionHours, setExtensionHours] = useState(1);
+    const [extensionCost, setExtensionCost] = useState(0);
+    const [isExtending, setIsExtending] = useState(false);
+    const [extensionError, setExtensionError] = useState(null);
+
+    // Add this helper function before your component
+    const formatDateTime = (date) => {
+        if (!date) return '';
+        
+        const options = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit'
+        };
+        
+        return new Date(date).toLocaleString('en-US', options);
     };
 
-    const deg2rad = (deg) => {
-        return deg * (Math.PI/180);
+    // Add this function after your state declarations and before your other functions
+    const resetForm = () => {
+        setFormData({
+            state: '',
+            district: '',
+            area: '',
+            parking_lot_id: '',
+            driver_name: userDetails?.first_name + ' ' + userDetails?.last_name || '',
+            car_number: userDetails?.car_number || '',
+            aadhar_number: userDetails?.aadhar_number || '',
+            date: '',
+            arrival_time: '',
+            departure_time: '',
+            driver_aadhar: userDetails?.aadhar_number || '',
+            actual_arrival_time: '',
+            actual_departed_time: ''
+        });
+
+        // Reset other relevant states
+        setBookingAmount({ amount: null, duration: null });
+        setAvailableSlots(null);
+        
+        // Reset locations except states
+        setLocations(prev => ({
+            states: prev.states,
+            districts: [],
+            areas: [],
+            parkingLots: []
+        }));
     };
 
     // Get user location function
@@ -102,87 +158,167 @@ const Home = () => {
         }
     };
 
-    // Modified handleAreaChange function
+    // Add this function to load Google Maps script
+    useEffect(() => {
+        const loadGoogleMapsScript = () => {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                console.log('Google Maps loaded successfully');
+                setIsGoogleMapsLoaded(true);
+            };
+            document.head.appendChild(script);
+        };
+
+        loadGoogleMapsScript();
+    }, []);
+
+    // Update handleAreaChange function to use Google Maps Distance Matrix API
     const handleAreaChange = async (e) => {
         const area = e.target.value;
-        console.log('Area changed to:', area);
-        
-        setFormData(prev => ({ 
-            ...prev, 
-            area,
-            parking_lot_id: ''
-        }));
+        setFormData(prev => ({ ...prev, area, parking_lot_id: '' }));
         
         try {
             const response = await fetch(
-                `https://exsel-backend-2.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
+                `http://localhost:3001/api/parking-lots/${formData.state}/${formData.district}/${area}`
             );
             const data = await response.json();
-            console.log('Received parking lots data:', data);
 
             if (data.success && data.parking_lots) {
-                setLocations(prev => ({ 
-                    ...prev, 
-                    parkingLots: data.parking_lots 
-                }));
+                setLocations(prev => ({ ...prev, parkingLots: data.parking_lots }));
 
-                if (userLocation) {
-                    data.parking_lots.forEach(lot => {
-                        console.log('Processing lot:', lot);
-                        if (lot.latitude && lot.longitude) {
-                            const distance = calculateDistance(
-                                userLocation.lat,
-                                userLocation.lng,
-                                parseFloat(lot.latitude),
-                                parseFloat(lot.longitude)
-                            );
-                            
-                            setDistances(prev => ({
-                                ...prev,
-                                [lot.id]: {
-                                    distance: distance < 1 ? 
-                                        `${Math.round(distance * 1000)} meters` : 
-                                        `${distance.toFixed(2)} km`
-                                }
-                            }));
+                // Get user's current location
+                if (navigator.geolocation && window.google) {
+                    navigator.geolocation.getCurrentPosition(async (position) => {
+                        const userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+
+                        console.log('User location:', userLocation);
+
+                        // Create Google Maps Distance Matrix Service
+                        const service = new window.google.maps.DistanceMatrixService();
+
+                        // Prepare destinations from parking lots
+                        const destinations = data.parking_lots.map(lot => ({
+                            lat: parseFloat(lot.latitude),
+                            lng: parseFloat(lot.longitude)
+                        }));
+
+                        try {
+                            // Get distances using Distance Matrix API
+                            const result = await new Promise((resolve, reject) => {
+                                service.getDistanceMatrix(
+                                    {
+                                        origins: [userLocation],
+                                        destinations: destinations,
+                                        travelMode: window.google.maps.TravelMode.DRIVING,
+                                        unitSystem: window.google.maps.UnitSystem.METRIC
+                                    },
+                                    (response, status) => {
+                                        if (status === 'OK') {
+                                            resolve(response);
+                                        } else {
+                                            reject(new Error(`Distance Matrix failed: ${status}`));
+                                        }
+                                    }
+                                );
+                            });
+
+                            console.log('Distance Matrix result:', result);
+
+                            // Process the results
+                            const updatedDistances = {};
+                            if (result.rows[0] && result.rows[0].elements) {
+                                data.parking_lots.forEach((lot, index) => {
+                                    const element = result.rows[0].elements[index];
+                                    if (element.status === 'OK') {
+                                        updatedDistances[lot.id] = {
+                                            distance: element.distance.text,
+                                            duration: element.duration.text
+                                        };
+                                    }
+                                });
+                            }
+
+                            console.log('Updated distances:', updatedDistances);
+                            setDistances(updatedDistances);
+        } catch (error) {
+                            console.error('Error calculating distances:', error);
                         }
+                    }, 
+                    (error) => {
+                        console.error('Geolocation error:', error);
                     });
                 }
-            }
-        } catch (error) {
+                }
+            } catch (error) {
             console.error('Error in handleAreaChange:', error);
         }
+    };
+
+    // Update the parking lot details display
+    const renderParkingLotDetails = (lot) => {
+        const distanceInfo = distances[lot.id];
+        
+        return (
+            <div className="lot-details">
+                <h3>Parking Lot Details</h3>
+                <div className="detail-item">
+                    <span className="label">Name</span>
+                    <span className="value">{lot.name}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="label">Address</span>
+                    <span className="value">{lot.address}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="label">Operating Hours</span>
+                    <span className="value">{lot.opening_time} - {lot.closing_time}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="label">Price</span>
+                    <span className="value">₹{lot.price_per_hour} per hour</span>
+                </div>
+                <div className="detail-item">
+                    <span className="label">Total Slots</span>
+                    <span className="value">{lot.total_slots}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="label">Distance</span>
+                    <span className="value">
+                        {distanceInfo ? (
+                            <>
+                                {distanceInfo.distance}
+                                <br />
+                                <small>({distanceInfo.duration} drive time)</small>
+                            </>
+                        ) : (
+                            'Calculating...'
+                        )}
+                    </span>
+                </div>
+                {lot.url && (
+                    <a 
+                        href={lot.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="view-on-map"
+                    >
+                        <i className="fas fa-map-marker-alt"></i> View on Google Maps
+                    </a>
+                )}
+            </div>
+        );
     };
 
     // Get user location when component mounts
     useEffect(() => {
         getLocation();
     }, []);
-
-    // Calculate distance when user location changes
-    useEffect(() => {
-        if (userLocation && locations.parkingLots?.length > 0) {
-            locations.parkingLots.forEach(lot => {
-                if (lot.latitude && lot.longitude) {
-                    const distance = calculateDistance(
-                        userLocation.lat,
-                        userLocation.lng,
-                        parseFloat(lot.latitude),
-                        parseFloat(lot.longitude)
-                    );
-                    
-                    setDistances(prev => ({
-                        ...prev,
-                        [lot.id]: {
-                            distance: distance < 1 ? 
-                                `${Math.round(distance * 1000)} meters` : 
-                                `${distance.toFixed(2)} km`
-                        }
-                    }));
-                }
-            });
-        }
-    }, [userLocation, locations.parkingLots]);
 
     // Handle form input changes
     const handleInputChange = (e) => {
@@ -198,76 +334,178 @@ const Home = () => {
         }
     };
 
-    // Handle form submission
+    // Update the handleSubmit function
     const handleSubmit = async (e) => {
         e.preventDefault();
         
         try {
-            const userId = userDetails.id;
+            setPaymentProcessing(true);
 
-            // Convert times to comparable format (minutes since midnight)
-            const arrivalMinutes = convertTimeToMinutes(formData.arrival_time);
-            const departureMinutes = convertTimeToMinutes(formData.departure_time);
-
-            // Validate times
-            if (arrivalMinutes >= departureMinutes) {
-                alert('Departure time must be after arrival time');
-                return;
-            }
-
-            const response = await fetch('https://exsel-backend-2.onrender.com/api/book-slot', {
+            // First create the booking
+            const bookingResponse = await fetch('http://localhost:3001/api/book-slot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     parking_lot_id: parseInt(formData.parking_lot_id),
-                    driver_name: formData.driver_name,
+                    driver_name: formData.driver_name || userDetails.first_name + ' ' + userDetails.last_name,
                     car_number: formData.car_number,
                     aadhar_number: formData.aadhar_number,
                     date: formData.date,
                     actual_arrival_time: formData.arrival_time,
                     actual_departed_time: formData.departure_time,
-                    user_id: userId
+                    user_id: userDetails.id
+                })
+            });
+
+            const bookingData = await bookingResponse.json();
+
+            if (!bookingResponse.ok) {
+                throw new Error(bookingData.error || 'Failed to create booking');
+            }
+
+            // Create Cashfree order
+            const orderResponse = await fetch('http://localhost:3001/api/create-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: bookingData.amount,
+                    booking_id: bookingData.booking_id,
+                    userDetails: userDetails
+                })
+            });
+
+            const orderData = await orderResponse.json();
+
+            if (!orderResponse.ok) {
+                throw new Error(orderData.error || 'Failed to create payment order');
+            }
+
+            // Initialize Cashfree payment
+            if (typeof window.Cashfree === 'undefined') {
+                throw new Error('Cashfree SDK not loaded');
+            }
+
+            const cashfree = new window.Cashfree(orderData.payment_session_id);
+            
+            // Open Cashfree payment page
+            cashfree.redirect();
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to process booking: ' + error.message);
+            setPaymentProcessing(false);
+        }
+    };
+
+    // Update the useEffect for loading Cashfree script
+    useEffect(() => {
+        const loadCashfreeScript = () => {
+            const script = document.createElement('script');
+            script.src = 'https://sdk.cashfree.com/js/ui/2.0.0/cashfree.sandbox.js';
+            script.async = true;
+            script.onload = () => {
+                console.log('Cashfree SDK loaded successfully');
+            };
+            script.onerror = (error) => {
+                console.error('Error loading Cashfree SDK:', error);
+            };
+            document.body.appendChild(script);
+        };
+
+        loadCashfreeScript();
+
+        return () => {
+            const script = document.querySelector('script[src="https://sdk.cashfree.com/js/ui/2.0.0/cashfree.sandbox.js"]');
+            if (script) {
+                document.body.removeChild(script);
+            }
+        };
+    }, []);
+
+    // Add this function after the handleSubmit function and before the useEffect hooks
+    const verifyPayment = async (orderId, bookingId) => {
+        try {
+            const response = await fetch('http://localhost:3001/api/verify-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    order_id: orderId,
+                    booking_id: bookingId
                 })
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to book slot');
+                throw new Error(data.error || 'Payment verification failed');
             }
 
-            // Show success message
-            alert(`Booking successful!\nBooking ID: ${data.booking_id}\nSlot Number: ${data.slot_number}`);
-            
-            // Reset form
-            setFormData({
-                state: '',
-                district: '',
-                area: '',
-                parking_lot_id: '',
-                driver_name: userDetails?.first_name + ' ' + userDetails?.last_name || '',
-                car_number: userDetails?.car_number || '',
-                aadhar_number: userDetails?.aadhar_number || '',
-                date: '',
-                arrival_time: '',
-                departure_time: '',
-                actual_arrival_time: '',
-                actual_departed_time: ''
-            });
-
-            // Reset location selections
-            setLocations({
-                states: locations.states,
-                districts: [],
-                areas: [],
-                parkingLots: []
-            });
-
+            if (data.success) {
+                alert('Payment successful! Your booking is confirmed.');
+                // Reset the form and refresh booking history
+                resetForm();
+                fetchBookingHistory();
+                // Switch to booking history tab
+                setActiveTab('history');
+            } else {
+                throw new Error('Payment verification failed');
+            }
         } catch (error) {
-            console.error('Error booking slot:', error);
-            alert('Failed to book slot: ' + error.message);
+            console.error('Error verifying payment:', error);
+            alert('Failed to verify payment: ' + error.message);
+        }
+    };
+
+    // Add this function after the verifyPayment function
+    const verifyExtensionPayment = async (orderId, bookingId, extensionId) => {
+        try {
+            const response = await fetch('http://localhost:3001/api/verify-extension-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    order_id: orderId,
+                    booking_id: bookingId,
+                    extension_id: extensionId
+                })
+            });
+
+            // Handle potential non-JSON responses
+            let data;
+            try {
+                const text = await response.text();
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse verification response:', text);
+                    throw new Error('Server returned an invalid response format for payment verification');
+                }
+            } catch (error) {
+                console.error('Error reading verification response:', error);
+                throw new Error('Failed to read server response for payment verification');
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Extension payment verification failed');
+            }
+
+            if (data.success) {
+                toast.success('Payment successful! Your booking has been extended.');
+                // Refresh booking history to show updated data
+                fetchBookingHistory();
+            } else {
+                throw new Error('Extension payment verification failed');
+            }
+        } catch (error) {
+            console.error('Error verifying extension payment:', error);
+            toast.error(`Failed to verify extension payment: ${error.message}`);
         }
     };
 
@@ -290,7 +528,7 @@ const Home = () => {
                 setIsLoading(true);
                 const userId = localStorage.getItem('userData'); // Get the user ID
                 
-                const response = await fetch(`https://exsel-backend-2.onrender.com/api/user-details?userId=${userId}`, {
+                const response = await fetch(`http://localhost:3001/api/user-details?userId=${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${Cookies.get('jwt_token')}`
                     }
@@ -316,7 +554,7 @@ const Home = () => {
     useEffect(() => {
         const fetchStates = async () => {
             try {
-                const response = await fetch('https://exsel-backend-2.onrender.com/api/states');
+                const response = await fetch('http://localhost:3001/api/states');
                 const data = await response.json();
                 // Ensure we're setting an array
                 setLocations(prev => ({ ...prev, states: Array.isArray(data) ? data : [] }));
@@ -340,7 +578,7 @@ const Home = () => {
         }));
         
         try {
-            const response = await fetch(`https://exsel-backend-2.onrender.com/api/districts/${state}`);
+            const response = await fetch(`http://localhost:3001/api/districts/${state}`);
             const districts = await response.json();
             setLocations(prev => ({ 
                 ...prev, 
@@ -365,7 +603,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `https://exsel-backend-2.onrender.com/api/areas/${formData.state}/${district}`
+                `http://localhost:3001/api/areas/${formData.state}/${district}`
             );
             const areas = await response.json();
             setLocations(prev => ({ 
@@ -380,24 +618,31 @@ const Home = () => {
 
     // Modified useEffect for Google Maps loading
     useEffect(() => {
-        console.log('Loading Google Maps...');
-        if (!window.google) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-            script.async = true;
-            script.onload = () => {
-                console.log('Google Maps API loaded successfully');
+        const loadGoogleMaps = () => {
+            if (!window.google) {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
+                script.async = true;
+                script.defer = true;
+                
+                script.onload = () => {
+                    console.log('Google Maps loaded successfully');
+                    setIsGoogleMapsLoaded(true);
+                    getLocation();
+                };
+
+                script.onerror = (error) => {
+                    console.error('Error loading Google Maps:', error);
+                };
+
+                document.head.appendChild(script);
+            } else {
                 setIsGoogleMapsLoaded(true);
                 getLocation();
-            };
-            script.onerror = (error) => {
-                console.error('Error loading Google Maps:', error);
-            };
-            document.head.appendChild(script);
-        } else {
-            console.log('Google Maps already loaded');
-            getLocation();
-        }
+            }
+        };
+
+        loadGoogleMaps();
     }, []);
 
     const onClickLogout = () => {
@@ -407,66 +652,171 @@ const Home = () => {
         navigate('/login');
     };
 
+    // Updated renderProfile function with a more beautiful design
     const renderProfile = () => {
         if (isLoading) {
             return (
-                <div className="profile-loading">
-                    Loading user details...
+                <div className="profile-container">
+                    <div className="profile-header-section">
+                        <h2>User Profile</h2>
+                    </div>
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Loading your profile...</p>
+                    </div>
                 </div>
             );
         }
 
         if (error) {
             return (
-                <div className="profile-error">
-                    Error loading user details: {error}
+                <div className="profile-container">
+                    <div className="profile-header-section">
+                        <h2>User Profile</h2>
+                    </div>
+                    <div className="error-container">
+                        <i className="fas fa-exclamation-circle"></i>
+                        <p>Error: {error}</p>
+                    </div>
                 </div>
             );
         }
 
         return (
-            <div className="dashboard-section">
+            <div className="profile-container">
+                <div className="profile-header-section">
                 <h2>User Profile</h2>
-                <div className="profile-details">
-                    <div className="profile-item">
-                        <span>First Name:</span>
-                        <p>{userDetails?.first_name}</p>
+                    <p className="profile-subtitle">Manage your personal information and preferences</p>
                     </div>
-                    <div className="profile-item">
-                        <span>Last Name:</span>
-                        <p>{userDetails?.last_name}</p>
+
+                <div className="profile-card-container">
+                    <div className="profile-main-card">
+                        <div className="profile-banner"></div>
+                        <div className="profile-avatar-wrapper">
+                            <div className="profile-avatar">
+                                <span>{userDetails?.first_name?.charAt(0)}{userDetails?.last_name?.charAt(0)}</span>
                     </div>
-                    <div className="profile-item">
-                        <span>Username:</span>
-                        <p>{userDetails?.username}</p>
                     </div>
-                    <div className="profile-item">
-                        <span>Gender:</span>
-                        <p>{userDetails?.gender}</p>
+                        <div className="profile-main-info">
+                            <h3 className="profile-name">{userDetails?.first_name} {userDetails?.last_name}</h3>
+                            <p className="profile-username">@{userDetails?.username}</p>
+                            <p className="profile-joined">
+                                <i className="fas fa-calendar-alt"></i> 
+                                Joined {new Date(userDetails?.created_at).toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })}
+                            </p>
                     </div>
-                    <div className="profile-item">
-                        <span>Date of Birth:</span>
-                        <p>{userDetails?.date_of_birth}</p>
+                        <div className="profile-stats">
+                            <div className="stat-item">
+                                <span className="stat-value">{bookingHistory?.length || 0}</span>
+                                <span className="stat-label">Bookings</span>
                     </div>
-                    <div className="profile-item">
-                        <span>Car Number:</span>
-                        <p>{userDetails?.car_number}</p>
+                            <div className="stat-item">
+                                <span className="stat-value">
+                                    {bookingHistory?.filter(b => b.status === 'allow' || b.booking_status === 'COMPLETED').length || 0}
+                                </span>
+                                <span className="stat-label">Completed</span>
                     </div>
-                    <div className="profile-item">
-                        <span>Aadhar Number:</span>
-                        <p>{userDetails?.aadhar_number}</p>
+                            <div className="stat-item">
+                                <span className="stat-value">
+                                    {bookingHistory?.filter(b => 
+                                        b.booking_status === 'CONFIRMED' && 
+                                        !b.departed_time && 
+                                        b.status !== 'allow'
+                                    ).length || 0}
+                                </span>
+                                <span className="stat-label">Upcoming</span>
                     </div>
-                    <div className="profile-item">
-                        <span>Phone Number:</span>
-                        <p>{userDetails?.phone_number}</p>
                     </div>
-                    <div className="profile-item">
-                        <span>Email:</span>
-                        <p>{userDetails?.email}</p>
                     </div>
-                    <div className="profile-item">
-                        <span>Created At:</span>
-                        <p>{new Date(userDetails?.created_at).toLocaleDateString()}</p>
+
+                    <div className="profile-details-grid">
+                        <div className="profile-detail-card">
+                            <div className="detail-card-header">
+                                <i className="fas fa-user"></i>
+                                <h3>Personal Information</h3>
+                    </div>
+                            <div className="detail-card-content">
+                                <div className="detail-item">
+                                    <span className="detail-label">First Name</span>
+                                    <span className="detail-value">{userDetails?.first_name}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Last Name</span>
+                                    <span className="detail-value">{userDetails?.last_name}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Gender</span>
+                                    <span className="detail-value">{userDetails?.gender}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Date of Birth</span>
+                                    <span className="detail-value">{userDetails?.date_of_birth}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="profile-detail-card">
+                            <div className="detail-card-header">
+                                <i className="fas fa-id-card"></i>
+                                <h3>Identity Information</h3>
+                            </div>
+                            <div className="detail-card-content">
+                                <div className="detail-item">
+                                    <span className="detail-label">Aadhar Number</span>
+                                    <span className="detail-value">
+                                        {userDetails?.aadhar_number ? 
+                                            `XXXX-XXXX-${userDetails.aadhar_number.slice(-4)}` : 
+                                            'Not provided'}
+                                    </span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Car Number</span>
+                                    <span className="detail-value">{userDetails?.car_number}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="profile-detail-card">
+                            <div className="detail-card-header">
+                                <i className="fas fa-envelope"></i>
+                                <h3>Contact Information</h3>
+                            </div>
+                            <div className="detail-card-content">
+                                <div className="detail-item">
+                                    <span className="detail-label">Email</span>
+                                    <span className="detail-value">{userDetails?.email}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Phone Number</span>
+                                    <span className="detail-value">{userDetails?.phone_number}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="profile-detail-card">
+                            <div className="detail-card-header">
+                                <i className="fas fa-shield-alt"></i>
+                                <h3>Account Security</h3>
+                            </div>
+                            <div className="detail-card-content">
+                                <div className="detail-item">
+                                    <span className="detail-label">Username</span>
+                                    <span className="detail-value">{userDetails?.username}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <span className="detail-label">Password</span>
+                                    <span className="detail-value">••••••••</span>
+                                </div>
+                                <button className="profile-action-btn">
+                                    <i className="fas fa-key"></i>
+                                    Change Password
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -484,39 +834,72 @@ const Home = () => {
         return currentDate > bookingEndTime;
     };
 
-    // Add this helper function
+    // Update the filter function to exclude bookings with slot_number = 0
     const filterBookings = (bookings) => {
-        const currentDate = new Date();
+        if (!bookings) return [];
         
-        return bookings.filter(booking => {
-            const bookingDate = new Date(booking.booked_date);
-            const [hours, minutes] = booking.actual_departed_time.split(':');
-            const bookingEndTime = new Date(bookingDate);
-            bookingEndTime.setHours(parseInt(hours), parseInt(minutes));
-            
-            const isCompleted = currentDate > bookingEndTime;
-            
-            switch(bookingFilter) {
+        // First filter out any bookings with slot_number = 0
+        const validBookings = bookings.filter(booking => booking.slot_number !== 0);
+        
+        switch (bookingFilter) {
                 case 'upcoming':
-                    return !isCompleted;
+                return validBookings.filter(booking => 
+                    booking.booking_status === 'CONFIRMED' && 
+                    !booking.departed_time && 
+                    booking.status !== 'allow'
+                );
                 case 'completed':
-                    return isCompleted;
+                return validBookings.filter(booking => 
+                    booking.status === 'allow' || 
+                    booking.booking_status === 'COMPLETED'
+                );
+            case 'cancelled':
+                return validBookings.filter(booking => 
+                    booking.booking_status === 'CANCELLED'
+                );
                 default:
-                    return true;
+                return validBookings;
             }
-        });
     };
 
-    // Update the handleStatusUpdate function
+    // Add this function after your state declarations
+    const showNotification = (message, type = 'success') => {
+        // Use the existing toast functionality since you already have react-toastify imported
+        if (type === 'success') {
+            toast.success(message);
+        } else if (type === 'error') {
+            toast.error(message);
+            } else {
+            toast.info(message);
+        }
+    };
+
+    // Update the handleStatusUpdate function to set status to "allow" when marking as DEPARTED
     const handleStatusUpdate = async (bookingId, newStatus) => {
         try {
+            // Optimistically update the UI first
+            if (newStatus === 'DEPARTED') {
+                // Find the booking in the current state and update it
+                setBookingHistory(prevHistory => 
+                    prevHistory.map(booking => 
+                        booking.booking_id === bookingId 
+                            ? { 
+                                ...booking, 
+                                departed_time: new Date().toTimeString().split(' ')[0],
+                                status: 'allow' // Set status to "allow"
+                            } 
+                            : booking
+                    )
+                );
+            }
+            
             const response = await fetch('https://exsel-backend-2.onrender.com/api/update-booking-status', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    bookingId,
+                    bookingId: bookingId,
                     status: newStatus
                 })
             });
@@ -524,259 +907,412 @@ const Home = () => {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to update status');
+                throw new Error(data.error || `Failed to update booking status to ${newStatus}`);
             }
 
-            // Show success message
-            alert(`Successfully marked as ${newStatus}`);
+            console.log(`Booking ${bookingId} marked as ${newStatus}:`, data);
 
-            // Refresh booking history
+            // Refresh booking history to show updated status
             fetchBookingHistory();
 
+            // Show success message using toast directly
+            toast.success(`Booking successfully marked as ${newStatus}!`);
         } catch (error) {
-            console.error('Error updating status:', error);
-            alert('Failed to update status: ' + error.message);
+            console.error(`Error updating booking status to ${newStatus}:`, error);
+            toast.error(`Failed to update status: ${error.message}`);
+            
+            // If there was an error, revert the optimistic update
+            if (newStatus === 'DEPARTED') {
+                fetchBookingHistory();
+            }
         }
     };
 
-    // Update the renderBookingStatus function
-    const renderBookingStatus = (booking) => {
+    // Add this function to debug the booking data
+    const debugBookingData = (booking) => {
+        console.log('Booking data debug:', {
+            id: booking.booking_id,
+            payment_status: booking.payment_status,
+            booking_status: booking.booking_status,
+            arrived_time: booking.arrived_time,
+            status: booking.status,
+            actual_arrival: booking.actual_arrival_time,
+            actual_departure: booking.actual_departed_time
+        });
+    };
+
+    // Add this function to your component before it's used in renderBookingCard
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'completed':
+                return 'fa-check-circle';
+            case 'in-progress':
+                return 'fa-hourglass-half';
+            case 'confirmed':
+                return 'fa-calendar-check';
+            case 'cancelled':
+                return 'fa-ban';
+            case 'pending':
+            default:
+                return 'fa-clock';
+        }
+    };
+
+    // Updated renderBookingCard function to display payment amount
+    const renderBookingCard = (booking) => {
+        // Skip rendering if slot_number is 0
+        if (booking.slot_number === 0) {
+            return null;
+        }
+        
+        // Debug log to check booking data
+        console.log('Rendering booking card:', booking);
+        console.log('Payment details:', {
+            amount_paid: booking.amount_paid,
+            payment_id: booking.payment_id,
+            payment_status: booking.payment_status
+        });
+        
+        // Format date
+        const bookingDate = new Date(booking.booked_date);
+        const month = bookingDate.toLocaleString('default', { month: 'short' });
+        const day = bookingDate.getDate();
+        const year = bookingDate.getFullYear();
+        
+        // Check if arrival is late
+        const isLate = booking.arrived_time && 
+                   booking.arrived_time > booking.actual_arrival_time;
+        
+        // Determine status for display - improved logic
         let statusClass = 'pending';
         let statusText = 'PENDING';
 
-        // Determine status based on booking_status and times
+        // If the booking has a departed_time, it's completed regardless of other statuses
         if (booking.departed_time) {
             statusClass = 'completed';
             statusText = 'COMPLETED';
-        } else if (booking.arrived_time) {
+        } 
+        // If it has arrived_time but no departed_time, it's in progress
+        else if (booking.arrived_time) {
             statusClass = 'in-progress';
             statusText = 'IN PROGRESS';
-        } else {
-            statusClass = 'pending';
-            statusText = 'PENDING';
         }
+        // If it has status='allow', it's also completed
+        else if (booking.status === 'allow') {
+            statusClass = 'completed';
+            statusText = 'COMPLETED';
+        }
+        // If it's confirmed but not arrived yet
+        else if (booking.booking_status === 'CONFIRMED' && booking.payment_status === 'COMPLETED') {
+            statusClass = 'confirmed';
+            statusText = 'CONFIRMED';
+        }
+        // If it's cancelled
+        else if (booking.booking_status === 'CANCELLED') {
+            statusClass = 'cancelled';
+            statusText = 'CANCELLED';
+        }
+        
+        // For testing, set a default amount_paid if it's null or undefined
+        const amountPaid = booking.amount_paid !== null && booking.amount_paid !== undefined 
+            ? booking.amount_paid 
+            : 150;
+        
+        // Determine if booking can be extended
+        const canExtendBooking = () => {
+            // Can only extend if booking is confirmed or arrived (not departed or cancelled)
+            const isActive = booking.booking_status === 'CONFIRMED' || 
+                             booking.arrived_time;
+            
+            // Can't extend if already departed
+            const notDeparted = !booking.departed_time;
+            
+            // Can't extend if it's past the end time
+            const notExpired = new Date() < new Date(booking.end_time);
+            
+            return isActive && notDeparted && notExpired;
+        };
+
+        // Add this right before the return statement in renderBookingCard
+        console.log('Extend Time button conditions:', {
+            bookingId: booking.booking_id,
+            bookingStatus: booking.booking_status,
+            paymentStatus: booking.payment_status,
+            departedTime: booking.departed_time,
+            status: booking.status,
+            arrivedTime: booking.arrived_time,
+            shouldShowButton: (booking.booking_status === 'CONFIRMED' || booking.arrived_time) && 
+                              booking.payment_status === 'COMPLETED' && 
+                              !booking.departed_time && 
+                              booking.status !== 'allow'
+        });
 
         return (
-            <div className="status-update-container">
-                <div className="status-info">
-                    <span className="status-label">Current Status:</span>
-                    <span className={`status-value ${statusClass}`}>
+            <div className="booking-card" key={booking.booking_id}>
+                <div className="booking-card-header">
+                    <div className="date-time">
+                        <div className="date">
+                            <span className="month">{month}</span>
+                            <span className="day">{day}</span>
+                        </div>
+                        <div className="time">
+                            <span>{year}</span>
+                            <span className={`status-badge ${statusClass}`}>
+                                <i className={`fas ${getStatusIcon(statusClass)}`}></i>
                         {statusText}
                     </span>
                 </div>
-                {!booking.departed_time && new Date(booking.booked_date) <= new Date() && (
-                    <div className="status-actions">
-                        {!booking.arrived_time && (
+                    </div>
+                </div>
+                
+                <div className="booking-details">
+                    <div className="booking-time-info">
+                        <div className="time-group">
+                            <span className="time-label">Scheduled Arrival</span>
+                            <span className="time-value">{booking.actual_arrival_time}</span>
+                        </div>
+                        {booking.arrived_time && (
+                            <div className="time-group">
+                                <span className="time-label">Actual Arrival</span>
+                                <span className="time-value">
+                                    {booking.arrived_time}
+                                    {isLate && <span className="late">Late</span>}
+                                </span>
+                            </div>
+                        )}
+                        <div className="time-group">
+                            <span className="time-label">Scheduled Departure</span>
+                            <span className="time-value">{booking.actual_departed_time}</span>
+                        </div>
+                        {booking.departed_time && (
+                            <div className="time-group">
+                                <span className="time-label">Actual Departure</span>
+                                <span className="time-value">{booking.departed_time}</span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="detail-row">
+                        <div className="detail-item">
+                            <i className="fas fa-car"></i>
+                            <div className="detail-text">
+                                <span className="label">Car Number</span>
+                                <span className="value">{booking.car_number}</span>
+                            </div>
+                        </div>
+                        <div className="detail-item">
+                            <i className="fas fa-parking"></i>
+                            <div className="detail-text">
+                                <span className="label">Slot Number</span>
+                                <span className="value">{booking.slot_number}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Always show payment information section */}
+                    <div className="payment-info">
+                        <div className="payment-header">
+                            <i className="fas fa-receipt"></i>
+                            <span>Payment Information</span>
+                        </div>
+                        <div className="payment-details">
+                            <div className="payment-item">
+                                <span className="payment-label">Amount Paid</span>
+                                <span className="payment-value">₹{amountPaid}</span>
+                            </div>
+                            <div className="payment-item">
+                                <span className="payment-label">Payment Status</span>
+                                <span className="payment-value">{booking.payment_status || 'Unknown'}</span>
+                            </div>
+                            {booking.payment_id && (
+                                <div className="payment-item">
+                                    <span className="payment-label">Payment ID</span>
+                                    <span className="payment-value">{booking.payment_id}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="booking-card-actions">
+                    {/* Only show action buttons if not completed */}
+                    {statusClass !== 'completed' && statusClass !== 'cancelled' && (
+                        <div className="booking-actions">
+                            {booking.arrived_time && !booking.departed_time && booking.status !== 'allow' && (
                             <button 
-                                className="status-btn arrive-btn"
-                                onClick={() => handleStatusUpdate(booking.booking_id, 'ARRIVED')}
-                            >
-                                <i className="fas fa-check-circle"></i>
-                                Mark as Arrived
+                                    className="action-btn depart-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStatusUpdate(booking.booking_id, 'DEPARTED');
+                                    }}
+                                >
+                                    <i className="fas fa-sign-out-alt"></i>
+                                    Mark as Departed
                             </button>
                         )}
-                        {booking.arrived_time && !booking.departed_time && (
+                            
+                            {/* Add the Extend Time button - only show for active bookings that aren't departed yet */}
+                            {(booking.booking_status === 'CONFIRMED' || booking.arrived_time) && 
+                             booking.payment_status === 'COMPLETED' && 
+                             !booking.departed_time && 
+                             booking.status !== 'allow' && (
+                                <button 
+                                    className="action-btn extend-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleExtendBookingTime(booking);
+                                    }}
+                                >
+                                    <i className="fas fa-clock"></i>
+                                    Extend Time
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    
+                    <div className="booking-utilities">
+                        <a 
+                            href={booking.location} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="utility-btn map-btn"
+                        >
+                            <i className="fas fa-map-marker-alt"></i>
+                            View in Maps
+                        </a>
+                        
+                        {/* Add Extend Booking button */}
+                        {canExtendBooking() && (
                             <button 
-                                className="status-btn depart-btn"
-                                onClick={() => handleStatusUpdate(booking.booking_id, 'DEPARTED')}
+                                className="extend-booking-btn"
+                                onClick={() => handleExtendBooking(booking)}
                             >
-                                <i className="fas fa-sign-out-alt"></i>
-                                Mark as Departed
+                                <i className="fas fa-clock"></i> Extend Booking
                             </button>
                         )}
                     </div>
-                )}
+                </div>
             </div>
         );
     };
 
-    // Update the booking card in renderBookingHistory
+    // Updated booking history rendering with filter functionality
     const renderBookingHistory = () => {
         if (isLoading) {
-            return <div className="loading">Loading booking history...</div>;
+            return (
+                <div className="booking-history-container">
+                    <div className="booking-header">
+                        <h2><i className="fas fa-history"></i> Booking History</h2>
+                    </div>
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Loading your bookings...</p>
+                    </div>
+                </div>
+            );
         }
 
         if (error) {
-            return <div className="error">Error: {error}</div>;
+            return (
+                <div className="booking-history-container">
+                    <div className="booking-header">
+                        <h2><i className="fas fa-history"></i> Booking History</h2>
+                    </div>
+                    <div className="error-container">
+                        <i className="fas fa-exclamation-circle"></i>
+                        <p>Error: {error}</p>
+                    </div>
+                </div>
+            );
         }
 
         const filteredBookings = filterBookings(bookingHistory);
 
         return (
             <div className="booking-history-container">
-                <h2>Booking History</h2>
+                <div className="booking-header">
+                    <h2><i className="fas fa-history"></i> Booking History</h2>
+                </div>
                 
-                {/* Add filter buttons */}
                 <div className="booking-filter">
                     <button 
                         className={`filter-btn ${bookingFilter === 'all' ? 'active' : ''}`}
                         onClick={() => setBookingFilter('all')}
                     >
-                        All
+                        <i className="fas fa-list"></i>
+                        <span>All Bookings</span>
                     </button>
                     <button 
                         className={`filter-btn ${bookingFilter === 'upcoming' ? 'active' : ''}`}
                         onClick={() => setBookingFilter('upcoming')}
                     >
-                        Upcoming
+                        <i className="fas fa-calendar-alt"></i>
+                        <span>Upcoming</span>
                     </button>
                     <button 
                         className={`filter-btn ${bookingFilter === 'completed' ? 'active' : ''}`}
                         onClick={() => setBookingFilter('completed')}
                     >
-                        Completed
+                        <i className="fas fa-check-circle"></i>
+                        <span>Completed</span>
+                    </button>
+                    <button 
+                        className={`filter-btn ${bookingFilter === 'cancelled' ? 'active' : ''}`}
+                        onClick={() => setBookingFilter('cancelled')}
+                    >
+                        <i className="fas fa-ban"></i>
+                        <span>Cancelled</span>
                     </button>
                 </div>
 
                 <div className="booking-cards">
                     {filteredBookings.length > 0 ? (
-                        filteredBookings.map((booking) => (
-                            <div key={booking.booking_id} className="booking-card">
-                                <div className="booking-header">
-                                    <div className={`status-badge ${isBookingCompleted(booking) ? 'completed' : 'upcoming'}`}>
-                                        <i className={`fas ${isBookingCompleted(booking) ? 'fa-check-circle' : 'fa-clock'}`}></i>
-                                        {isBookingCompleted(booking) ? 'Completed' : 'Upcoming'}
-                                    </div>
-                                    <div className="booking-date">
-                                        <i className="fas fa-calendar"></i>
-                                        {new Date(booking.booked_date).toLocaleDateString()}
-                                    </div>
-                                </div>
-                                <div className="booking-content">
-                                    <div className="booking-details">
-                                        <div className="detail-row">
-                                            <div className="detail-item">
-                                                <i className="fas fa-car"></i>
-                                                <div className="detail-text">
-                                                    <span className="label">Car Number</span>
-                                                    <span className="value">{booking.car_number}</span>
-                                                </div>
-                                            </div>
-                                            <div className="detail-item">
-                                                <i className="fas fa-map-marker-alt"></i>
-                                                <div className="detail-text">
-                                                    <span className="label">Slot Number</span>
-                                                    <span className="value">{booking.slot_number}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="detail-row">
-                                            <div className="detail-item">
-                                                <i className="fas fa-hourglass-start"></i>
-                                                <div className="detail-text">
-                                                    <span className="label">Scheduled Arrival</span>
-                                                    <span className="value">{booking.actual_arrival_time}</span>
-                                                    {booking.arrived_time && (
-                                                        <>
-                                                            <span className="label mt-2">Actual Arrival</span>
-                                                            <span className="value actual-time">
-                                                                {booking.arrived_time}
-                                                                {booking.arrived_time > booking.actual_arrival_time && (
-                                                                    <span className="late-badge">Late</span>
-                                                                )}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="detail-item">
-                                                <i className="fas fa-hourglass-end"></i>
-                                                <div className="detail-text">
-                                                    <span className="label">Scheduled Departure</span>
-                                                    <span className="value">{booking.actual_departed_time}</span>
-                                                    {booking.departed_time && (
-                                                        <>
-                                                            <span className="label mt-2">Actual Departure</span>
-                                                            <span className="value actual-time">
-                                                                {booking.departed_time}
-                                                                {booking.departed_time > booking.actual_departed_time && (
-                                                                    <span className="late-badge">Overtime</span>
-                                                                )}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {renderBookingStatus(booking)}
-                                        {booking.location && (
-                                            <div className="location-link-container">
-                                                <a 
-                                                    href={booking.location}
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="location-link"
-                                                >
-                                                    <i className="fas fa-location-arrow"></i>
-                                                    View in Maps
-                                                </a>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {!isBookingCompleted(booking) && (
-                                    <div className="booking-actions">
-                                        <button 
-                                            className="extend-button"
-                                            onClick={() => handleExtend(booking)}
-                                        >
-                                            <i className="fas fa-clock"></i>
-                                            Extend Booking
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ))
+                        filteredBookings.map(booking => renderBookingCard(booking))
                     ) : (
                         <div className="no-bookings">
                             <i className="fas fa-calendar-times"></i>
                             <p>No {bookingFilter !== 'all' ? bookingFilter : ''} bookings found</p>
-                        </div>
+                                    </div>
                     )}
-                </div>
-
-                {/* Extension Modal */}
-                {showExtendModal && (
-                    <div className="modal-overlay">
-                        <div className="modal-content">
-                            <h3>Extend Booking</h3>
-                            <p>Current End Time: {selectedBooking?.actual_departed_time}</p>
-                            <div className="form-group">
-                                <label>New End Time:</label>
-                                <input
-                                    type="time"
-                                    value={extensionTime}
-                                    onChange={(e) => setExtensionTime(e.target.value)}
-                                    min={selectedBooking?.actual_departed_time}
-                                    required
-                                />
-                            </div>
-                            <div className="modal-actions">
-                                <button 
-                                    className="cancel-btn"
-                                    onClick={() => {
-                                        setShowExtendModal(false);
-                                        setSelectedBooking(null);
-                                        setExtensionTime('');
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    className="confirm-btn"
-                                    onClick={handleExtendSubmit}
-                                    disabled={extendLoading}
-                                >
-                                    {extendLoading ? 'Processing...' : 'Confirm Extension'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+                                    </div>
+                                </div>
         );
     };
 
+    // Add function to calculate estimated amount
+    const calculateEstimatedAmount = () => {
+        if (formData.arrival_time && formData.departure_time && formData.parking_lot_id) {
+            const selectedLot = locations.parkingLots.find(
+                lot => lot.id.toString() === formData.parking_lot_id
+            );
+            
+            if (selectedLot) {
+                const [arrivalHours, arrivalMinutes] = formData.arrival_time.split(':').map(Number);
+                const [departureHours, departureMinutes] = formData.departure_time.split(':').map(Number);
+                
+                const totalMinutes = (departureHours * 60 + departureMinutes) - 
+                                   (arrivalHours * 60 + arrivalMinutes);
+                
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                const amount = (hours * selectedLot.price_per_hour) + 
+                             ((minutes / 60) * selectedLot.price_per_hour);
+                
+                setBookingAmount({
+                    amount: Math.ceil(amount),
+                    duration: { hours, minutes }
+                });
+            }
+        }
+    };
+
+    // Add useEffect to calculate amount when times or parking lot changes
+    useEffect(() => {
+        calculateEstimatedAmount();
+    }, [formData.arrival_time, formData.departure_time, formData.parking_lot_id]);
+
+    // Modify the renderBookAppointment function to include amount display
     const renderBookAppointment = () => (
         <div className="booking-form-container">
             <h2>Book a Parking Slot</h2>
@@ -829,65 +1365,63 @@ const Home = () => {
                 </div>
 
                 {/* Parking lot selection */}
-                {Array.isArray(locations.parkingLots) && locations.parkingLots.length > 0 && (
-                    <div className="form-group">
-                        <label>Parking Lot</label>
+                <div className="parking-lot-select-container">
                         <select 
                             name="parking_lot_id"
                             value={formData.parking_lot_id}
-                            onChange={(e) => setFormData(prev => ({ 
+                        onChange={(e) => {
+                            setFormData(prev => ({ 
                                 ...prev, 
                                 parking_lot_id: e.target.value 
-                            }))}
+                            }));
+                            setShowLotDetails(true);
+                        }}
                             required
                             disabled={!formData.area}
                             className="parking-lot-select"
                         >
                             <option value="">Select Parking Lot</option>
-                            {locations.parkingLots.map((lot) => (
-                                <option key={lot.id} value={lot.id}>
-                                    {lot.name} - ₹{lot.price_per_hour}/hr
-                                    {distances[lot.id] && ` (${distances[lot.id].distance} km away)`}
-                                </option>
-                            ))}
+                            {locations.parkingLots.map((lot) => {
+                                const distanceInfo = distances[lot.id];
+                                const distanceText = distanceInfo 
+                                    ? `(${distanceInfo.distance} • ${distanceInfo.duration} drive)`
+                                    : '';
+
+                                return (
+                                    <option key={lot.id} value={lot.id}>
+                                        {lot.name} - ₹{lot.price_per_hour}/hr {distanceText}
+                                    </option>
+                                );
+                            })}
                         </select>
 
                         {/* Show selected parking lot details */}
                         {formData.parking_lot_id && locations.parkingLots && (
                             <div className="parking-lot-details">
-                                <h3>Parking Lot Details</h3>
                                 {locations.parkingLots
                                     .filter(lot => lot.id.toString() === formData.parking_lot_id)
                                     .map(lot => (
-                                        <div key={lot.id} className="lot-info">
-                                            <p><strong>Name:</strong> {lot.name}</p>
-                                            <p><strong>Address:</strong> {lot.address}</p>
-                                            <p><strong>Timings:</strong> {lot.opening_time} - {lot.closing_time}</p>
-                                            <p><strong>Price:</strong> ₹{lot.price_per_hour} per hour</p>
-                                            <p><strong>Total Slots:</strong> {lot.total_slots}</p>
-                                            <p>
-                                                <strong>Distance: </strong>
-                                                {!userLocation ? 'Getting your location...' :
-                                                 !lot.latitude || !lot.longitude ? 'Location coordinates not available' :
-                                                 !distances[lot.id] ? 'Calculating...' :
-                                                 distances[lot.id].distance}
-                                            </p>
-                                            <p>
-                                                <a 
-                                                    href={lot.url} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="location-link"
-                                                >
-                                                    View on Google Maps
-                                                </a>
-                                            </p>
+                                    <div key={lot.id}>
+                                        <div 
+                                            className="lot-details-header"
+                                            onClick={() => setShowLotDetails(!showLotDetails)}
+                                        >
+                                            <h3>
+                                                <i className="fas fa-info-circle"></i>
+                                                Parking Lot Details
+                                            </h3>
+                                            <i className={`fas fa-chevron-${showLotDetails ? 'up' : 'down'}`}></i>
+                                        </div>
+                                        {showLotDetails && (
+                                            <div className="lot-details-content open">
+                                                {renderParkingLotDetails(lot)}
+                                            </div>
+                                        )}
                                         </div>
                                     ))}
                             </div>
                         )}
                     </div>
-                )}
 
                 <div className="form-group">
                     <label>Driver Name</label>
@@ -970,24 +1504,20 @@ const Home = () => {
                     />
                 </div>
 
-                {/* Add Check Availability Button */}
-                {/* <button 
-                    type="button" 
-                    className="check-availability-btn"
-                    onClick={checkAvailability}
-                    disabled={!formData.parking_lot_id || !formData.date || 
-                             !formData.arrival_time || !formData.departure_time ||
-                             isCheckingAvailability}
-                >
-                    {isCheckingAvailability ? 'Checking...' : 'Check Availability'}
-                </button> */}
-
-                {/* Display availability information */}
-                {availableSlots !== null && (
-                    <div className={`availability-info ${availableSlots > 0 ? 'available' : 'unavailable'}`}>
-                        {availableSlots > 0 
-                            ? `${availableSlots} slots available!` 
-                            : 'No slots available for selected time'}
+                {/* Add estimated amount display after the time inputs */}
+                {bookingAmount.amount !== null && (
+                    <div className="estimated-amount">
+                        <h3>Estimated Charges</h3>
+                        <div className="amount-details">
+                            <p className="duration">
+                                Duration: {bookingAmount.duration.hours} hours{' '}
+                                {bookingAmount.duration.minutes > 0 ? 
+                                    `${bookingAmount.duration.minutes} minutes` : ''}
+                            </p>
+                            <p className="amount">
+                                Amount: ₹{bookingAmount.amount}
+                            </p>
+                        </div>
                     </div>
                 )}
 
@@ -1020,14 +1550,36 @@ const Home = () => {
                 throw new Error('User ID not found');
             }
 
-            const response = await fetch(`https://exsel-backend-2.onrender.com/api/booking-history/${userDetails.id}`);
+            console.log('Fetching booking history for user:', userDetails.id);
+            
+            const response = await fetch(`http://localhost:3001/api/booking-history/${userDetails.id}`);
             const data = await response.json();
-
+            
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to fetch booking history');
             }
 
-            setBookingHistory(data);
+            // Log the raw data to see what's coming from the API
+            console.log('Raw booking history data:', data);
+
+            // Filter out bookings with slot_number = 0 and process the data
+            const processedData = data
+                .filter(booking => booking.slot_number !== 0) // Filter out slot_number = 0
+                .map(booking => {
+                    console.log(`Processing booking ${booking.booking_id}, amount_paid:`, booking.amount_paid);
+                    return {
+                        ...booking,
+                        // Ensure booking_status is set correctly
+                        booking_status: booking.booking_status || 'CONFIRMED', // Default to CONFIRMED if not set
+                        // Ensure payment_status is set correctly
+                        payment_status: booking.payment_status || 'COMPLETED', // Default to COMPLETED if not set
+                        // Format amount_paid if it exists
+                        amount_paid: booking.amount_paid !== undefined ? booking.amount_paid : null
+                    };
+                });
+
+            console.log('Processed booking history data:', processedData);
+            setBookingHistory(processedData);
         } catch (error) {
             console.error('Error fetching booking history:', error);
             setError(error.message);
@@ -1040,7 +1592,7 @@ const Home = () => {
     const fetchAvailableSlots = async (parkingLotId, date, time) => {
         try {
             const response = await fetch(
-                `https://exsel-backend-2.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
+                `http://localhost:3001/api/available-slots/${parkingLotId}/${date}/${time}`
             );
             const data = await response.json();
             if (response.ok) {
@@ -1086,7 +1638,7 @@ const Home = () => {
 
         setIsCheckingAvailability(true);
         try {
-            const response = await fetch('https://exsel-backend-2.onrender.com/api/check-slot-availability', {
+            const response = await fetch('http://localhost:3001/api/check-slot-availability', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1140,68 +1692,416 @@ const Home = () => {
     }, [formData.parking_lot_id, formData.date, formData.arrival_time, formData.departure_time]);
 
     // Handle extend button click
-    const handleExtend = (booking) => {
-        setSelectedBooking(booking);
-        setExtensionTime(booking.actual_departed_time);
+    const handleExtendBooking = (booking) => {
+        setExtendBookingData(booking);
+        setExtendHours(1);
+        setExtendError(null);
         setShowExtendModal(true);
     };
 
-    // Handle extend submit
-    const handleExtendSubmit = async () => {
-        if (!extensionTime || !selectedBooking) {
-            alert('Please select a new end time');
-            return;
-        }
-
-        // Validate that new time is after current end time
-        const currentEndMinutes = convertTimeToMinutes(selectedBooking.actual_departed_time);
-        const newEndMinutes = convertTimeToMinutes(extensionTime);
+    // Function to calculate the new end time and price
+    const calculateExtendedBooking = () => {
+        if (!extendBookingData) return null;
         
-        if (newEndMinutes <= currentEndMinutes) {
-            alert('New end time must be after current end time');
-            return;
-        }
+        // Parse the current end time
+        const currentEndTime = new Date(extendBookingData.end_time);
+        
+        // Calculate new end time by adding hours
+        const newEndTime = new Date(currentEndTime);
+        newEndTime.setHours(newEndTime.getHours() + parseInt(extendHours));
+        
+        // Calculate additional cost
+        const hourlyRate = extendBookingData.price_per_hour || 10; // Default to 10 if not available
+        const additionalCost = hourlyRate * extendHours;
+        
+        return {
+            currentEndTime: formatDateTime(currentEndTime),
+            newEndTime: formatDateTime(newEndTime),
+            additionalHours: extendHours,
+            additionalCost: additionalCost,
+            totalCost: (extendBookingData.amount_paid || 0) + additionalCost
+        };
+    };
 
+    // Function to submit the booking extension request
+    const submitExtendBooking = async () => {
+        if (!extendBookingData) return;
+        
         setExtendLoading(true);
+        setExtendError(null);
+        
         try {
+            // Calculate the new end time
+            const currentEndTime = new Date(extendBookingData.end_time);
+            const newEndTime = new Date(currentEndTime);
+            newEndTime.setHours(newEndTime.getHours() + parseInt(extendHours));
+            
+            // Prepare the request data
+            const requestData = {
+                booking_id: extendBookingData.booking_id,
+                parking_lot_id: extendBookingData.parking_lot_id,
+                slot_number: extendBookingData.slot_number,
+                current_end_time: extendBookingData.end_time,
+                new_end_time: newEndTime.toISOString(),
+                additional_hours: parseInt(extendHours)
+            };
+            
+            console.log('Extending booking with data:', requestData);
+            
+            // Send the request to the backend
             const response = await fetch('https://exsel-backend-2.onrender.com/api/extend-booking', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    booking_id: selectedBooking.booking_id,
-                    new_end_time: extensionTime
-                })
+                body: JSON.stringify(requestData)
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to extend booking');
-            }
-
+            
             const data = await response.json();
             
-            // Update the booking in state
-            setBookingHistory(prevHistory => 
-                prevHistory.map(booking => 
-                    booking.booking_id === selectedBooking.booking_id
-                        ? { ...booking, actual_departed_time: extensionTime }
-                        : booking
-                )
-            );
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to extend booking');
+            }
             
-            alert('Booking extended successfully!');
+            console.log('Booking extended successfully:', data);
             
+            // Close the modal and refresh booking history
+            setShowExtendModal(false);
+            fetchBookingHistory();
+            
+            // Show success message
+            toast.success('Booking extended successfully!');
         } catch (error) {
             console.error('Error extending booking:', error);
-            alert('Failed to extend booking: ' + error.message);
+            setExtendError(error.message);
+            toast.error(`Failed to extend booking: ${error.message}`);
         } finally {
             setExtendLoading(false);
-            setShowExtendModal(false);
-            setSelectedBooking(null);
-            setExtensionTime('');
         }
+    };
+
+    // Render the extend booking modal
+    const renderExtendBookingModal = () => {
+        if (!showExtendModal || !extendBookingData) return null;
+        
+        const extendedBooking = calculateExtendedBooking();
+        
+        return (
+            <div className="modal-overlay">
+                <div className="modal-content extend-booking-modal">
+                    <div className="modal-header">
+                        <h2>Extend Booking</h2>
+                        <button className="close-btn" onClick={() => setShowExtendModal(false)}>
+                            <i className="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div className="modal-body">
+                        <div className="booking-summary">
+                            <h3>Current Booking Details</h3>
+                            <div className="summary-item">
+                                <span className="summary-label">Parking Lot:</span>
+                                <span className="summary-value">{extendBookingData.parking_lot_name}</span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Slot Number:</span>
+                                <span className="summary-value">{extendBookingData.slot_number}</span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Current End Time:</span>
+                                <span className="summary-value">{extendedBooking?.currentEndTime}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="extend-options">
+                            <h3>Extension Details</h3>
+                            <div className="form-group">
+                                <label htmlFor="extend-hours">Additional Hours:</label>
+                                <select 
+                                    id="extend-hours" 
+                                    value={extendHours} 
+                                    onChange={(e) => setExtendHours(parseInt(e.target.value))}
+                                >
+                                    {[1, 2, 3, 4, 5, 6].map(hours => (
+                                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? 's' : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="extension-summary">
+                                <div className="summary-item">
+                                    <span className="summary-label">New End Time:</span>
+                                    <span className="summary-value">{extendedBooking?.newEndTime}</span>
+                                </div>
+                                <div className="summary-item">
+                                    <span className="summary-label">Additional Cost:</span>
+                                    <span className="summary-value">₹{extendedBooking?.additionalCost}</span>
+                                </div>
+                            </div>
+                            
+                            {extendError && (
+                                <div className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i> {extendError}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="modal-footer">
+                        <button 
+                            className="cancel-btn" 
+                            onClick={() => setShowExtendModal(false)}
+                            disabled={extendLoading}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="confirm-btn" 
+                            onClick={submitExtendBooking}
+                            disabled={extendLoading}
+                        >
+                            {extendLoading ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Processing...</>
+                            ) : (
+                                <>Confirm Extension</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Add this function to handle the extend booking time button click
+    const handleExtendBookingTime = (booking) => {
+        setSelectedBookingForExtension(booking);
+        setExtensionHours(1);
+        
+        // Calculate initial extension cost based on the booking's hourly rate
+        const hourlyRate = booking.price_per_hour || 10; // Default to 10 if not available
+        setExtensionCost(hourlyRate);
+        
+        setExtensionError(null);
+        setShowExtendTimeModal(true);
+    };
+
+    const handleExtensionHoursChange = (hours) => {
+        setExtensionHours(hours);
+        
+        // Recalculate cost
+        const hourlyRate = selectedBookingForExtension?.price_per_hour || 10; // Change from 150 to 10
+        setExtensionCost(hourlyRate * hours);
+    };
+
+    const submitExtendTime = async () => {
+        if (!selectedBookingForExtension) return;
+        
+        setIsExtending(true);
+        setExtensionError(null);
+        
+        try {
+            // Calculate the new departure time
+            const bookingDate = new Date(selectedBookingForExtension.booked_date);
+            const [departureHours, departureMinutes] = selectedBookingForExtension.actual_departed_time.split(':').map(Number);
+            
+            // Set the departure time
+            bookingDate.setHours(departureHours, departureMinutes, 0, 0);
+            
+            // Add the extension hours
+            bookingDate.setHours(bookingDate.getHours() + extensionHours);
+            
+            // Format the new departure time
+            const newDepartureTime = `${String(bookingDate.getHours()).padStart(2, '0')}:${String(bookingDate.getMinutes()).padStart(2, '0')}:00`;
+            
+            // Prepare the request data for creating extension request
+            const extensionData = {
+                bookingId: selectedBookingForExtension.booking_id,
+                extensionHours: extensionHours,
+                newDepartureTime: newDepartureTime,
+                additionalCost: extensionCost,
+                userId: userDetails.id
+            };
+            
+            console.log('Creating extension request with data:', extensionData);
+            
+            // First create the extension request
+            const extensionResponse = await fetch('http://localhost:3001/api/create-extension-request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(extensionData)
+            });
+            
+            // Handle potential non-JSON responses
+            let extensionResult;
+            try {
+                const text = await extensionResponse.text();
+                try {
+                    extensionResult = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse extension response:', text);
+                    throw new Error('Server returned an invalid response format for extension request');
+                }
+            } catch (error) {
+                console.error('Error reading extension response:', error);
+                throw new Error('Failed to read server response');
+            }
+            
+            if (!extensionResponse.ok) {
+                throw new Error(extensionResult.error || 'Failed to create extension request');
+            }
+            
+            console.log('Extension request created successfully:', extensionResult);
+            
+            // Now create a Cashfree order for the extension payment
+            const orderResponse = await fetch('http://localhost:3001/api/create-extension-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: extensionCost,
+                    bookingId: selectedBookingForExtension.booking_id,
+                    extensionId: extensionResult.extensionId || extensionResult.id, // Use the ID from the response
+                    userDetails: userDetails
+                })
+            });
+            
+            // Handle potential non-JSON responses for order creation
+            let orderData;
+            try {
+                const text = await orderResponse.text();
+                try {
+                    orderData = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse order response:', text);
+                    throw new Error('Server returned an invalid response format for payment order');
+                }
+            } catch (error) {
+                console.error('Error reading order response:', error);
+                throw new Error('Failed to read server response for payment order');
+            }
+            
+            if (!orderResponse.ok) {
+                throw new Error(orderData.error || 'Failed to create payment order');
+            }
+            
+            console.log('Payment order created successfully:', orderData);
+            
+            // Close the modal before redirecting to payment
+            setShowExtendTimeModal(false);
+            
+            // Initialize Cashfree payment
+            if (typeof window.Cashfree === 'undefined') {
+                throw new Error('Cashfree SDK not loaded');
+            }
+            
+            // Create and redirect to Cashfree payment page
+            const cashfree = new window.Cashfree(orderData.payment_session_id);
+            cashfree.redirect();
+            
+            // The rest of the flow will be handled by the payment callback
+            
+        } catch (error) {
+            console.error('Error extending booking time:', error);
+            setExtensionError(error.message);
+            toast.error(`Failed to extend booking time: ${error.message}`);
+            setIsExtending(false);
+        }
+    };
+
+    // Render the extend time modal
+    const renderExtendTimeModal = () => {
+        if (!showExtendTimeModal || !selectedBookingForExtension) return null;
+        
+        return (
+            <div className="modal-overlay">
+                <div className="modal-content extend-time-modal">
+                    <div className="modal-header">
+                        <h2>Extend Booking Time</h2>
+                        <button 
+                            className="close-btn" 
+                            onClick={() => setShowExtendTimeModal(false)}
+                            disabled={isExtending}
+                        >
+                            <i className="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div className="modal-body">
+                        <div className="booking-summary">
+                            <h3>Current Booking Details</h3>
+                            <div className="summary-item">
+                                <span className="summary-label">Parking Lot:</span>
+                                <span className="summary-value">{selectedBookingForExtension.parking_lot_name}</span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Slot Number:</span>
+                                <span className="summary-value">{selectedBookingForExtension.slot_number}</span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Current Departure Time:</span>
+                                <span className="summary-value">{selectedBookingForExtension.actual_departed_time}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="extend-options">
+                            <h3>Extension Details</h3>
+                            <div className="form-group">
+                                <label htmlFor="extension-hours">Additional Hours:</label>
+                                <select 
+                                    id="extension-hours" 
+                                    value={extensionHours} 
+                                    onChange={(e) => handleExtensionHoursChange(parseInt(e.target.value))}
+                                    disabled={isExtending}
+                                >
+                                    {[1, 2, 3, 4, 5, 6].map(hours => (
+                                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? 's' : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="extension-summary">
+                                <div className="summary-item">
+                                    <span className="summary-label">Additional Cost:</span>
+                                    <span className="summary-value">₹{extensionCost}</span>
+                                </div>
+                            </div>
+                            
+                            {extensionError && (
+                                <div className="error-message">
+                                    <i className="fas fa-exclamation-circle"></i> {extensionError}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="modal-footer">
+                        <button 
+                            className="cancel-btn" 
+                            onClick={() => setShowExtendTimeModal(false)}
+                            disabled={isExtending}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="confirm-btn" 
+                            onClick={submitExtendTime}
+                            disabled={isExtending}
+                        >
+                            {isExtending ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Processing...</>
+                            ) : (
+                                <>Confirm & Pay</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     // Fetch booking history when component mounts
@@ -1221,6 +2121,7 @@ const Home = () => {
                         />
                         <h1 className="navbar-title">Park Smart</h1>
                     </div>
+                    
                     
                     <div className="navbar-right">
                         <div className="user-info">
@@ -1242,26 +2143,34 @@ const Home = () => {
                     <button 
                         className={`sidebar-btn ${activeTab === 'profile' ? 'active' : ''}`}
                         onClick={() => setActiveTab('profile')}
+                        data-tab="profile"
                     >
-                        Profile
+                        <i className="fas fa-user"></i>
+                        <span>Profile</span>
                     </button>
                     <button 
                         className={`sidebar-btn ${activeTab === 'history' ? 'active' : ''}`}
                         onClick={() => setActiveTab('history')}
+                        data-tab="history"
                     >
-                        Booking History
+                        <i className="fas fa-history"></i>
+                        <span>Booking History</span>
                     </button>
                     <button 
                         className={`sidebar-btn ${activeTab === 'book' ? 'active' : ''}`}
                         onClick={() => setActiveTab('book')}
+                        data-tab="book"
                     >
-                        Book Slot
+                        <i className="fas fa-parking"></i>
+                        <span>Book Slot</span>
                     </button>
                     <button 
                         className={`sidebar-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
                         onClick={() => setActiveTab('upcoming')}
+                        data-tab="upcoming"
                     >
-                        Upcoming Bookings
+                        <i className="fas fa-calendar-alt"></i>
+                        <span>Upcoming Bookings</span>
                     </button>
                 </div>
                 
@@ -1272,6 +2181,13 @@ const Home = () => {
                     {activeTab === 'upcoming' && renderUpcomingAppointments()}
                 </div>
             </div>
+
+            {/* Add ToastContainer for notifications */}
+            <ToastContainer position="top-right" autoClose={5000} />
+            
+            {/* Render the extend booking modal */}
+            {renderExtendBookingModal()}
+            {renderExtendTimeModal()}
         </div>
     );
 };
