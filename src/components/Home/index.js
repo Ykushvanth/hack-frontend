@@ -61,7 +61,7 @@ const Home = () => {
     const [userLocation, setUserLocation] = useState(null);
     const [distances, setDistances] = useState({});
     const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
-    const GOOGLE_MAPS_API_KEY = 'AIzaSyBYKr2fCP0ro0Wj6GxsX-bv1dpI6xp3CzQ'; // Replace with your actual API key
+    const GOOGLE_MAPS_API_KEY = ''; // Replace with your actual API key
 
     // Constants for TIFAC parking coordinates
     const TIFAC_COORDINATES = {
@@ -188,75 +188,140 @@ const Home = () => {
 
             if (data.success && data.parking_lots) {
                 setLocations(prev => ({ ...prev, parkingLots: data.parking_lots }));
-
+                
                 // Get user's current location
-                if (navigator.geolocation && window.google) {
+                if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(async (position) => {
                         const userLocation = {
                             lat: position.coords.latitude,
                             lng: position.coords.longitude
                         };
 
-                        console.log('User location:', userLocation);
+                        console.log('🎯 User Current Location:', userLocation);
 
-                        // Create Google Maps Distance Matrix Service
-                        const service = new window.google.maps.DistanceMatrixService();
+                        // Process each parking lot
+                        const updatedDistances = {};
+                        
+                        for (const lot of data.parking_lots) {
+                            try {
+                                // Special logging for Kalasalingam University
+                                if (lot.name === 'Kalasalingam University') {
+                                    console.log('🔍 Processing Kalasalingam University:', {
+                                        name: lot.name,
+                                        address: lot.address,
+                                        latitude: lot.latitude,
+                                        longitude: lot.longitude,
+                                        userLocation
+                                    });
+                                }
 
-                        // Prepare destinations from parking lots
-                        const destinations = data.parking_lots.map(lot => ({
-                            lat: parseFloat(lot.latitude),
-                            lng: parseFloat(lot.longitude)
-                        }));
+                                // Enhanced coordinate validation
+                                const lat = parseFloat(lot.latitude);
+                                const lng = parseFloat(lot.longitude);
+                                
+                                if (!lot.latitude || !lot.longitude || 
+                                    isNaN(lat) || isNaN(lng) ||
+                                    lat < -90 || lat > 90 ||
+                                    lng < -180 || lng > 180) {
+                                    console.warn(`⚠️ Invalid coordinates for parking lot: ${lot.name}`, {
+                                        latitude: lot.latitude,
+                                        longitude: lot.longitude
+                                    });
+                                    updatedDistances[lot.id] = {
+                                        distance: 'N/A',
+                                        duration: 'N/A'
+                                    };
+                                    continue;
+                                }
 
-                        try {
-                            // Get distances using Distance Matrix API
-                            const result = await new Promise((resolve, reject) => {
-                                service.getDistanceMatrix(
-                                    {
-                                        origins: [userLocation],
-                                        destinations: destinations,
-                                        travelMode: window.google.maps.TravelMode.DRIVING,
-                                        unitSystem: window.google.maps.UnitSystem.METRIC
+                                // OpenRouteService API configuration
+                                const apiKey = "5b3ce3597851110001cf62485b6c8f862da94241b6079e49235ccbaf";
+                                const url = "https://api.openrouteservice.org/v2/matrix/driving-car";
+
+                                // Prepare request body
+                                const requestBody = {
+                                    locations: [
+                                        [userLocation.lng, userLocation.lat], // Start (Longitude, Latitude)
+                                        [lng, lat] // Destination (Longitude, Latitude)
+                                    ],
+                                    metrics: ["distance", "duration"] // We need both distance and duration
+                                };
+
+                                if (lot.name === 'Kalasalingam University') {
+                                    console.log('🚗 OpenRouteService Request for Kalasalingam:', requestBody);
+                                }
+
+                                const response = await fetch(url, {
+                                    method: "POST",
+                                    headers: {
+                                        "Authorization": apiKey,
+                                        "Content-Type": "application/json"
                                     },
-                                    (response, status) => {
-                                        if (status === 'OK') {
-                                            resolve(response);
-                                        } else {
-                                            reject(new Error(`Distance Matrix failed: ${status}`));
-                                        }
-                                    }
-                                );
-                            });
-
-                            console.log('Distance Matrix result:', result);
-
-                            // Process the results
-                            const updatedDistances = {};
-                            if (result.rows[0] && result.rows[0].elements) {
-                                data.parking_lots.forEach((lot, index) => {
-                                    const element = result.rows[0].elements[index];
-                                    if (element.status === 'OK') {
-                                        updatedDistances[lot.id] = {
-                                            distance: element.distance.text,
-                                            duration: element.duration.text
-                                        };
-                                    }
+                                    body: JSON.stringify(requestBody)
                                 });
-                            }
 
-                            console.log('Updated distances:', updatedDistances);
-                            setDistances(updatedDistances);
-        } catch (error) {
-                            console.error('Error calculating distances:', error);
+                                if (!response.ok) {
+                                    const errorText = await response.text();
+                                    console.error(`❌ OpenRouteService API error for ${lot.name}:`, {
+                                        status: response.status,
+                                        statusText: response.statusText,
+                                        error: errorText
+                                    });
+                                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                                }
+
+                                const result = await response.json();
+                                
+                                if (lot.name === 'Kalasalingam University') {
+                                    console.log('🛣️ OpenRouteService Response for Kalasalingam:', result);
+                                }
+
+                                if (result.distances && result.durations) {
+                                    const distanceMeters = result.distances[0][1];
+                                    const durationSeconds = result.durations[0][1];
+                                    
+                                    const distanceInKm = (distanceMeters / 1000).toFixed(2);
+                                    const durationInMinutes = (durationSeconds / 60).toFixed(0);
+                                    
+                                    updatedDistances[lot.id] = {
+                                        distance: `${distanceInKm} km`,
+                                        duration: `${durationInMinutes} mins`
+                                    };
+
+                                    if (lot.name === 'Kalasalingam University') {
+                                        console.log(`
+                                            📍 Final Distance Calculation for Kalasalingam:
+                                            Distance: ${distanceInKm} km
+                                            Duration: ${durationInMinutes} minutes
+                                        `);
+                                    }
+                                } else {
+                                    throw new Error('Invalid distance or duration in API response');
+                                }
+                            } catch (error) {
+                                console.error(`❌ Error calculating distance for ${lot.name}:`, error);
+                                updatedDistances[lot.id] = {
+                                    distance: 'Error',
+                                    duration: 'Error'
+                                };
+                            }
                         }
+
+                        console.log('📊 Final Distance Calculations:', updatedDistances);
+                        setDistances(updatedDistances);
                     }, 
                     (error) => {
-                        console.error('Geolocation error:', error);
+                        console.error('❌ Geolocation error:', error);
+                        toast.error('Please enable location access to see distance information');
                     });
+                } else {
+                    console.warn('⚠️ Geolocation is not supported by this browser');
+                    toast.warning('Geolocation is not supported by your browser');
                 }
-                }
-            } catch (error) {
-            console.error('Error in handleAreaChange:', error);
+            }
+        } catch (error) {
+            console.error('❌ Error in handleAreaChange:', error);
+            toast.error('Failed to fetch parking lots');
         }
     };
 
@@ -291,13 +356,25 @@ const Home = () => {
                     <span className="label">Distance</span>
                     <span className="value">
                         {distanceInfo ? (
-                            <>
-                                {distanceInfo.distance}
-                                <br />
-                                <small>({distanceInfo.duration} drive time)</small>
-                            </>
+                            distanceInfo.distance === 'Error' ? (
+                                <span className="error-text">
+                                    <i className="fas fa-exclamation-circle"></i> Error calculating distance
+                                </span>
+                            ) : distanceInfo.distance === 'N/A' ? (
+                                <span className="na-text">
+                                    <i className="fas fa-question-circle"></i> Distance not available
+                                </span>
+                            ) : (
+                                <>
+                                    {distanceInfo.distance}
+                                    <br />
+                                    <small>({distanceInfo.duration} drive time)</small>
+                                </>
+                            )
                         ) : (
-                            'Calculating...'
+                            <span className="loading-text">
+                                <i className="fas fa-spinner fa-spin"></i> Calculating...
+                            </span>
                         )}
                     </span>
                 </div>
@@ -338,6 +415,29 @@ const Home = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Convert times to Date objects for comparison
+        const arrivedDate = new Date(formData.arrival_time);
+        const completedDate = new Date(formData.departure_time);
+        const currentDate = new Date();
+
+        // Validate times
+        if (arrivedDate >= completedDate) {
+            toast.error("Arrived time must be before completed time");
+            return;
+        }
+
+        // Check if arrival time is in the past
+        if (formData.date === currentDate.toISOString().split('T')[0]) {
+            const [hours, minutes] = formData.arrival_time.split(':');
+            const selectedDateTime = new Date(currentDate);
+            selectedDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+            if (selectedDateTime < currentDate) {
+                toast.error("Cannot book slot for past time");
+                return;
+            }
+        }
+
         try {
             setPaymentProcessing(true);
 
@@ -1476,9 +1576,28 @@ const Home = () => {
                         type="time"
                         name="arrival_time"
                         value={formData.arrival_time}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                            const selectedTime = e.target.value;
+                            const currentDate = new Date();
+                            const [hours, minutes] = selectedTime.split(':');
+                            const selectedDateTime = new Date(currentDate);
+                            selectedDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                            // If the selected date is today, check if the time is in the past
+                            if (formData.date === currentDate.toISOString().split('T')[0]) {
+                                if (selectedDateTime < currentDate) {
+                                    toast.error('Cannot select past time for today');
+                                    return;
+                                }
+                            }
+
+                            handleInputChange(e);
+                        }}
                         required
                     />
+                    <small className="form-text text-muted">
+                        Select a future time for arrival
+                    </small>
                 </div>
 
                 <div className="form-group">
@@ -1982,7 +2101,7 @@ const Home = () => {
                 }
             } catch (error) {
                 console.error('Error reading order response:', error);
-                throw new Error('Failed to read server response for payment order');
+                throw new Error('Failed to read server response');
             }
             
             if (!orderResponse.ok) {

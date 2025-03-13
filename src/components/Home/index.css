@@ -2469,4 +2469,49 @@
 .button-otp:hover::after {
     width: 200px;
     height: 200px;
+}
+
+.lot-details .detail-item .value {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lot-details .detail-item .value .error-text {
+    color: #dc3545;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lot-details .detail-item .value .na-text {
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lot-details .detail-item .value .loading-text {
+    color: #0d6efd;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lot-details .detail-item .value small {
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.lot-details .detail-item .value i {
+    font-size: 1.1em;
+}
+
+.lot-details .detail-item .value .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 } 
