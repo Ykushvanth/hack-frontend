@@ -28,6 +28,7 @@ const Home = () => {
         area: '',
         parking_lot_id: '',
         car_number: userDetails?.car_number || '',
+        rfid_number: '', // Add this line
         aadhar_number: userDetails?.aadhar_number || '',
         date: '',
         arrival_time: '',
@@ -116,6 +117,7 @@ const Home = () => {
             parking_lot_id: '',
             driver_name: userDetails?.first_name + ' ' + userDetails?.last_name || '',
             car_number: userDetails?.car_number || '',
+            rfid_number: '', // Add this line
             aadhar_number: userDetails?.aadhar_number || '',
             date: '',
             arrival_time: '',
@@ -188,7 +190,7 @@ const Home = () => {
 
             if (data.success && data.parking_lots) {
                 setLocations(prev => ({ ...prev, parkingLots: data.parking_lots }));
-                
+
                 // Get user's current location
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(async (position) => {
@@ -227,7 +229,7 @@ const Home = () => {
                                         latitude: lot.latitude,
                                         longitude: lot.longitude
                                     });
-                                    updatedDistances[lot.id] = {
+                                        updatedDistances[lot.id] = {
                                         distance: 'N/A',
                                         duration: 'N/A'
                                     };
@@ -298,7 +300,7 @@ const Home = () => {
                                 } else {
                                     throw new Error('Invalid distance or duration in API response');
                                 }
-                            } catch (error) {
+        } catch (error) {
                                 console.error(`❌ Error calculating distance for ${lot.name}:`, error);
                                 updatedDistances[lot.id] = {
                                     distance: 'Error',
@@ -318,8 +320,8 @@ const Home = () => {
                     console.warn('⚠️ Geolocation is not supported by this browser');
                     toast.warning('Geolocation is not supported by your browser');
                 }
-            }
-        } catch (error) {
+                }
+            } catch (error) {
             console.error('❌ Error in handleAreaChange:', error);
             toast.error('Failed to fetch parking lots');
         }
@@ -342,7 +344,7 @@ const Home = () => {
                 </div>
                 <div className="detail-item">
                     <span className="label">Operating Hours</span>
-                    <span className="value">{lot.opening_time} - {lot.closing_time}</span>
+                    <span className="value">24/7</span>
                 </div>
                 <div className="detail-item">
                     <span className="label">Price</span>
@@ -365,11 +367,11 @@ const Home = () => {
                                     <i className="fas fa-question-circle"></i> Distance not available
                                 </span>
                             ) : (
-                                <>
-                                    {distanceInfo.distance}
-                                    <br />
-                                    <small>({distanceInfo.duration} drive time)</small>
-                                </>
+                            <>
+                                {distanceInfo.distance}
+                                <br />
+                                <small>({distanceInfo.duration} drive time)</small>
+                            </>
                             )
                         ) : (
                             <span className="loading-text">
@@ -433,8 +435,8 @@ const Home = () => {
             selectedDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
             if (selectedDateTime < currentDate) {
-                toast.error("Cannot book slot for past time");
-                return;
+            toast.error("Cannot book slot for past time");
+            return;
             }
         }
 
@@ -451,12 +453,23 @@ const Home = () => {
                     parking_lot_id: parseInt(formData.parking_lot_id),
                     driver_name: formData.driver_name || userDetails.first_name + ' ' + userDetails.last_name,
                     car_number: formData.car_number,
+                    rfid_number: formData.rfid_number, // Make sure this is included
                     aadhar_number: formData.aadhar_number,
                     date: formData.date,
                     actual_arrival_time: formData.arrival_time,
                     actual_departed_time: formData.departure_time,
                     user_id: userDetails.id
                 })
+            });
+
+            // Add console log to verify data being sent
+            console.log('Sending booking data:', {
+                parking_lot_id: parseInt(formData.parking_lot_id),
+                driver_name: formData.driver_name || userDetails.first_name + ' ' + userDetails.last_name,
+                car_number: formData.car_number,
+                rfid_number: formData.rfid_number,
+                aadhar_number: formData.aadhar_number,
+                // ... other fields
             });
 
             const bookingData = await bookingResponse.json();
@@ -1200,6 +1213,14 @@ const Home = () => {
                                 <span className="value">{booking.car_number}</span>
                             </div>
                         </div>
+                        {/* Add RFID display */}
+                        <div className="detail-item">
+                            <i className="fas fa-tag"></i>
+                            <div className="detail-text">
+                                <span className="label">RFID Number</span>
+                                <span className="value">{booking.rfid_number || 'N/A'}</span>
+                            </div>
+                        </div>
                         <div className="detail-item">
                             <i className="fas fa-parking"></i>
                             <div className="detail-text">
@@ -1542,6 +1563,18 @@ const Home = () => {
                         value={formData.car_number}
                         onChange={handleInputChange}
                         required
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>RFID Number</label>
+                    <input 
+                        type="text"
+                        name="rfid_number"
+                        value={formData.rfid_number || ''}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="Enter your RFID tag number"
                     />
                 </div>
 
