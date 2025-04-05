@@ -120,7 +120,7 @@ const Home = () => {
             }
 
             // First, check availability and get prepone info
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/prepone-arrival', {
+            const response = await fetch('http://localhost:3001/api/prepone-arrival', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ const Home = () => {
             // If there's an additional cost, create a payment order
             if (preponeInfo.additional_cost > 0) {
                 // Create order for payment
-                const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-prepone-order', {
+                const orderResponse = await fetch('http://localhost:3001/api/create-prepone-order', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1207,7 +1207,7 @@ const Home = () => {
                 );
             }
             
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/update-booking-status', {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/update-booking-status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2118,7 +2118,7 @@ const Home = () => {
             console.log('Extending booking with data:', requestData);
             
             // Send the request to the backend
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/extend-booking', {
+            const response = await fetch('https://exsel-backend-2.onrender.com/api/extend-booking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
