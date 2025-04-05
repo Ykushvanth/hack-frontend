@@ -112,16 +112,15 @@ const Home = () => {
     const handlePreponeSubmit = async () => {
         try {
             setIsPreponingBooking(true);
-            setPreponeError(null);
+            setError(null);
 
             if (!selectedBookingForPrepone || !newArrivalTime) {
-                setPreponeError('Please select a new arrival time');
-                setIsPreponingBooking(false);
+                setError('Missing required information');
                 return;
             }
 
-            // Send prepone request
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/prepone-arrival', {
+            // First, check availability and get prepone info
+            const response = await fetch('http://localhost:3001/api/prepone-arrival', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -135,33 +134,70 @@ const Home = () => {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to prepone booking');
+                throw new Error(data.error || 'Failed to create prepone request');
             }
 
-            // Update the booking in the state
-            setBookingHistory(prevHistory => 
-                prevHistory.map(booking => 
-                    booking.booking_id === selectedBookingForPrepone.booking_id
-                        ? {
-                            ...booking,
-                            actual_arrival_time: data.new_arrival_time,
-                            slot_number: data.new_slot_number || booking.slot_number
-                        }
-                        : booking
-                )
-            );
+            const preponeInfo = data.prepone_info;
 
-            // Show success message
-            showNotification('Booking preponed successfully', 'success');
-            
-            // Close the modal
-            setShowPreponeModal(false);
-            setSelectedBookingForPrepone(null);
-            setNewArrivalTime('');
+            // If there's an additional cost, create a payment order
+            if (preponeInfo.additional_cost > 0) {
+                // Create order for payment
+                const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-prepone-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: preponeInfo.additional_cost,
+                        bookingId: selectedBookingForPrepone.booking_id,
+                        userDetails: userDetails
+                    })
+                });
 
+                const orderData = await orderResponse.json();
+
+                if (!orderResponse.ok) {
+                    throw new Error(orderData.error || 'Failed to create payment order');
+                }
+
+                // Initialize Cashfree payment
+                const cashfree = new window.Cashfree({
+                    mode: "sandbox" // or "production"
+                });
+
+                await cashfree.init({
+                    orderToken: orderData.payment_session_id
+                });
+
+                // Render payment UI
+                await cashfree.redirect();
+            } else {
+                // If no additional cost, directly confirm the prepone
+                const confirmResponse = await fetch('https://exsel-backend-3.onrender.com/api/confirm-prepone', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        booking_id: selectedBookingForPrepone.booking_id
+                    })
+                });
+
+                const confirmData = await confirmResponse.json();
+
+                if (!confirmResponse.ok) {
+                    throw new Error(confirmData.error || 'Failed to confirm prepone');
+                }
+
+                // Close modal and refresh booking history
+                setShowPreponeModal(false);
+                fetchBookingHistory();
+                toast.success('Booking preponed successfully!');
+            }
         } catch (error) {
-            console.error('Error preponing booking:', error);
-            setPreponeError(error.message);
+            console.error('Error in handlePreponeSubmit:', error);
+            setError(error.message);
+            toast.error(`Failed to prepone booking: ${error.message}`);
         } finally {
             setIsPreponingBooking(false);
         }
@@ -578,54 +614,63 @@ const Home = () => {
             selectedDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
             if (selectedDateTime < currentDate) {
-            toast.error("Cannot book slot for past time");
-            return;
+                toast.error("Cannot book slot for past time");
+                return;
             }
         }
 
         try {
             setPaymentProcessing(true);
 
-            // First create the booking
-            const bookingResponse = await fetch('https://exsel-backend-3.onrender.com/api/book-slot', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    parking_lot_id: parseInt(formData.parking_lot_id),
-                    driver_name: formData.driver_name || userDetails.first_name + ' ' + userDetails.last_name,
-                    car_number: formData.car_number,
-                    rfid_number: formData.rfid_number, // Make sure this is included
-                    aadhar_number: formData.aadhar_number,
-                    date: formData.date,
-                    actual_arrival_time: formData.arrival_time,
-                    actual_departed_time: formData.departure_time,
-                    user_id: userDetails.id
-                })
-            });
-
-            // Add console log to verify data being sent
-            console.log('Sending booking data:', {
+            // Log the request data for debugging
+            const requestData = {
                 parking_lot_id: parseInt(formData.parking_lot_id),
                 driver_name: formData.driver_name || userDetails.first_name + ' ' + userDetails.last_name,
                 car_number: formData.car_number,
                 rfid_number: formData.rfid_number,
                 aadhar_number: formData.aadhar_number,
-                // ... other fields
+                date: formData.date,
+                actual_arrival_time: formData.arrival_time,
+                actual_departed_time: formData.departure_time,
+                user_id: userDetails.id
+            };
+
+            console.log('Sending booking request with data:', requestData);
+
+            // First create the booking
+            const bookingResponse = await fetch('https://exsel-backend-3.onrender.com/api/book-slot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(requestData)
             });
 
-            const bookingData = await bookingResponse.json();
-
+            // Check if the response is ok before trying to parse JSON
             if (!bookingResponse.ok) {
-                throw new Error(bookingData.error || 'Failed to create booking');
+                const errorText = await bookingResponse.text();
+                console.error('Booking response error:', errorText);
+                throw new Error(`Server error: ${bookingResponse.status} ${bookingResponse.statusText}`);
             }
+
+            // Try to parse the JSON response
+            let bookingData;
+            try {
+                bookingData = await bookingResponse.json();
+            } catch (parseError) {
+                console.error('Error parsing booking response:', parseError);
+                throw new Error('Invalid response from server');
+            }
+
+            console.log('Booking created successfully:', bookingData);
 
             // Create Cashfree order
             const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     amount: bookingData.amount,
@@ -634,11 +679,23 @@ const Home = () => {
                 })
             });
 
-            const orderData = await orderResponse.json();
-
+            // Check if the order response is ok before trying to parse JSON
             if (!orderResponse.ok) {
-                throw new Error(orderData.error || 'Failed to create payment order');
+                const errorText = await orderResponse.text();
+                console.error('Order response error:', errorText);
+                throw new Error(`Payment error: ${orderResponse.status} ${orderResponse.statusText}`);
             }
+
+            // Try to parse the JSON response
+            let orderData;
+            try {
+                orderData = await orderResponse.json();
+            } catch (parseError) {
+                console.error('Error parsing order response:', parseError);
+                throw new Error('Invalid response from payment server');
+            }
+
+            console.log('Payment order created successfully:', orderData);
 
             // Initialize Cashfree payment
             if (typeof window.Cashfree === 'undefined') {
@@ -648,11 +705,12 @@ const Home = () => {
             const cashfree = new window.Cashfree(orderData.payment_session_id);
             
             // Open Cashfree payment page
-            cashfree.redirect();
+            await cashfree.redirect();
 
         } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to process booking: ' + error.message);
+            console.error('Error processing booking:', error);
+            toast.error(error.message || 'Failed to process booking');
+        } finally {
             setPaymentProcessing(false);
         }
     };
