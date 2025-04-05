@@ -39,7 +39,7 @@ const PaymentStatus = () => {
                 if (isExtension) endpoint = 'verify-extension-payment';
                 if (isPrepone) endpoint = 'verify-prepone-payment';
                 
-                const response = await fetch(`http://localhost:3001/api/${endpoint}`, {
+                const response = await fetch(`https://exsel-backend-3.onrender.com/api/${endpoint}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
