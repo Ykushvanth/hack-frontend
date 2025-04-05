@@ -47,6 +47,7 @@ const PaymentStatus = () => {
                     body: JSON.stringify({ order_id, booking_id })
                 });
 
+                
                 const data = await response.json();
 
                 if (!response.ok) {
