@@ -16,6 +16,7 @@ const PaymentStatus = () => {
                 const order_id = params.get('order_id');
                 const booking_id = params.get('booking_id');
                 const isExtension = params.get('extension') === 'true';
+                const isPrepone = params.get('prepone') === 'true';
 
                 if (!order_id || !booking_id) {
                     setStatus('Invalid payment session');
@@ -23,14 +24,20 @@ const PaymentStatus = () => {
                     return;
                 }
 
-                console.log(`Verifying ${isExtension ? 'extension' : 'booking'} payment for order: ${order_id}, booking: ${booking_id}`);
-                setStatus(`Verifying ${isExtension ? 'extension' : 'booking'} payment with Cashfree...`);
+                let paymentType = 'booking';
+                if (isExtension) paymentType = 'extension';
+                if (isPrepone) paymentType = 'prepone';
+
+                console.log(`Verifying ${paymentType} payment for order: ${order_id}, booking: ${booking_id}`);
+                setStatus(`Verifying ${paymentType} payment with Cashfree...`);
 
                 // First, wait a few seconds to allow Cashfree to process the payment
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 
-                // Choose the appropriate endpoint based on whether this is an extension payment
-                const endpoint = isExtension ? 'verify-extension-payment' : 'verify-payment';
+                // Choose the appropriate endpoint based on payment type
+                let endpoint = 'verify-payment';
+                if (isExtension) endpoint = 'verify-extension-payment';
+                if (isPrepone) endpoint = 'verify-prepone-payment';
                 
                 const response = await fetch(`http://localhost:3001/api/${endpoint}`, {
                     method: 'POST',
@@ -41,37 +48,26 @@ const PaymentStatus = () => {
                 });
 
                 const data = await response.json();
-                console.log(`${isExtension ? 'Extension' : 'Payment'} verification response:`, data);
 
-                if (response.ok && data.success) {
-                    setStatus(`${isExtension ? 'Extension' : 'Payment'} successful! Redirecting to booking history...`);
-                    setPaymentDetails({
-                        slotNumber: data.slot_number,
-                        amountPaid: data.amount_paid,
-                        newDepartureTime: data.newDepartureTime,
-                        additionalCost: data.additionalCost,
-                        isExtension: isExtension
-                    });
-                    
-                    setTimeout(() => {
-                        navigate('/', { state: { activeTab: 'history' } });
-                    }, 5000);
-                } else {
-                    const errorMessage = data.error || 'Unknown error occurred';
-                    setStatus(`${isExtension ? 'Extension' : 'Payment'} verification failed: ${errorMessage}`);
-                    setError(errorMessage);
-                    
-                    setTimeout(() => {
-                        navigate('/', { state: { activeTab: 'history' } });
-                    }, 5000);
+                if (!response.ok) {
+                    throw new Error(data.error || `Failed to verify ${paymentType} payment`);
                 }
-            } catch (error) {
-                console.error('Error verifying payment:', error);
-                setStatus('Error connecting to payment server. Please contact support.');
-                setError(error.message);
-                
+
+                setPaymentDetails(data);
+                setStatus('Payment successful!');
+
+                // Redirect after 3 seconds
                 setTimeout(() => {
-                    navigate('/', { state: { activeTab: 'history' } });
+                    navigate('/dashboard');
+                }, 3000);
+            } catch (error) {
+                console.error('Payment verification error:', error);
+                setError(error.message);
+                setStatus('Payment verification failed');
+
+                // Redirect after 5 seconds on error
+                setTimeout(() => {
+                    navigate('/dashboard');
                 }, 5000);
             }
         };
@@ -82,68 +78,31 @@ const PaymentStatus = () => {
     return (
         <div className="payment-status-container">
             <div className="payment-status-card">
-                <div className="status-icon">
-                    {status.includes('successful') ? (
-                        <i className="fas fa-check-circle success"></i>
-                    ) : status.includes('failed') || status.includes('Error') ? (
-                        <i className="fas fa-times-circle error"></i>
+                <h2>Payment Status</h2>
+                <div className="status-message">
+                    {error ? (
+                        <div className="error-message">
+                            <i className="fas fa-times-circle"></i>
+                            <p>{error}</p>
+                        </div>
                     ) : (
-                        <i className="fas fa-spinner fa-spin processing"></i>
+                        <div className="success-message">
+                            <i className="fas fa-check-circle"></i>
+                            <p>{status}</p>
+                        </div>
                     )}
                 </div>
-                <h2>Payment Status</h2>
-                <p>{status}</p>
-                
                 {paymentDetails && (
                     <div className="payment-details">
-                        {paymentDetails.isExtension ? (
-                            <>
-                                {paymentDetails.additionalCost && (
-                                    <div className="payment-detail-item">
-                                        <span>Additional Amount Paid:</span>
-                                        <strong>₹{paymentDetails.additionalCost}</strong>
-                                    </div>
-                                )}
-                                {paymentDetails.newDepartureTime && (
-                                    <div className="payment-detail-item">
-                                        <span>New Departure Time:</span>
-                                        <strong>{paymentDetails.newDepartureTime}</strong>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <>
-                                <div className="payment-detail-item">
-                                    <span>Slot Number:</span>
-                                    <strong>{paymentDetails.slotNumber}</strong>
-                                </div>
-                                {paymentDetails.amountPaid && (
-                                    <div className="payment-detail-item">
-                                        <span>Amount Paid:</span>
-                                        <strong>₹{paymentDetails.amountPaid}</strong>
-                                    </div>
-                                )}
-                            </>
+                        <p>{paymentDetails.message}</p>
+                        {paymentDetails.additionalCost && (
+                            <p>Additional Amount Paid: ₹{paymentDetails.additionalCost}</p>
                         )}
                     </div>
                 )}
-                
-                {error && (
-                    <div className="payment-error">
-                        <p>Error details: {error}</p>
-                        <p>If you've been charged, please contact support for assistance.</p>
-                    </div>
-                )}
-                
-                <div className="navigation-hint">
-                    <p>You will be redirected automatically in a few seconds...</p>
-                    <button 
-                        className="manual-redirect-btn"
-                        onClick={() => navigate('/', { state: { activeTab: 'history' } })}
-                    >
-                        Go back to dashboard
-                    </button>
-                </div>
+                <p className="redirect-message">
+                    Redirecting to dashboard{error ? ' in 5 seconds...' : ' in 3 seconds...'}
+                </p>
             </div>
         </div>
     );

@@ -93,6 +93,149 @@ const Home = () => {
     const [isExtending, setIsExtending] = useState(false);
     const [extensionError, setExtensionError] = useState(null);
 
+    // Add state variables for prepone functionality
+    const [showPreponeModal, setShowPreponeModal] = useState(false);
+    const [selectedBookingForPrepone, setSelectedBookingForPrepone] = useState(null);
+    const [newArrivalTime, setNewArrivalTime] = useState('');
+    const [preponeError, setPreponeError] = useState(null);
+    const [isPreponingBooking, setIsPreponingBooking] = useState(false);
+
+    // Add function to handle prepone arrival button click
+    const handlePreponeArrival = (booking) => {
+        setSelectedBookingForPrepone(booking);
+        setNewArrivalTime('');
+        setPreponeError(null);
+        setShowPreponeModal(true);
+    };
+
+    // Add function to handle prepone submission
+    const handlePreponeSubmit = async () => {
+        try {
+            setIsPreponingBooking(true);
+            setPreponeError(null);
+
+            if (!selectedBookingForPrepone || !newArrivalTime) {
+                setPreponeError('Please select a new arrival time');
+                setIsPreponingBooking(false);
+                return;
+            }
+
+            // Send prepone request
+            const response = await fetch('http://localhost:3001/api/prepone-arrival', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    booking_id: selectedBookingForPrepone.booking_id,
+                    new_arrival_time: newArrivalTime
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to prepone booking');
+            }
+
+            // Update the booking in the state
+            setBookingHistory(prevHistory => 
+                prevHistory.map(booking => 
+                    booking.booking_id === selectedBookingForPrepone.booking_id
+                        ? {
+                            ...booking,
+                            actual_arrival_time: data.new_arrival_time,
+                            slot_number: data.new_slot_number || booking.slot_number
+                        }
+                        : booking
+                )
+            );
+
+            // Show success message
+            showNotification('Booking preponed successfully', 'success');
+            
+            // Close the modal
+            setShowPreponeModal(false);
+            setSelectedBookingForPrepone(null);
+            setNewArrivalTime('');
+
+        } catch (error) {
+            console.error('Error preponing booking:', error);
+            setPreponeError(error.message);
+        } finally {
+            setIsPreponingBooking(false);
+        }
+    };
+
+    // Add prepone modal render function
+    const renderPreponeModal = () => {
+        if (!showPreponeModal || !selectedBookingForPrepone) return null;
+
+        return (
+            <div className="modal-overlay">
+                <div className="modal-content">
+                    <div className="modal-header">
+                        <h2>Prepone Arrival</h2>
+                        <button 
+                            className="close-btn" 
+                            onClick={() => setShowPreponeModal(false)}
+                            disabled={isPreponingBooking}
+                        >
+                            <i className="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div className="modal-body">
+                        <div className="current-booking-info">
+                            <p>Current Arrival Time: <strong>{selectedBookingForPrepone.actual_arrival_time}</strong></p>
+                            <p>Slot Number: <strong>{selectedBookingForPrepone.slot_number}</strong></p>
+                        </div>
+
+                        <div className="prepone-form">
+                            <div className="form-group">
+                                <label>New Arrival Time:</label>
+                                <input
+                                    type="time"
+                                    value={newArrivalTime}
+                                    onChange={(e) => setNewArrivalTime(e.target.value)}
+                                    disabled={isPreponingBooking}
+                                />
+                            </div>
+                        </div>
+
+                        {preponeError && (
+                            <div className="error-message">
+                                <i className="fas fa-exclamation-circle"></i>
+                                {preponeError}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="modal-footer">
+                        <button 
+                            className="cancel-btn" 
+                            onClick={() => setShowPreponeModal(false)}
+                            disabled={isPreponingBooking}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="confirm-btn" 
+                            onClick={handlePreponeSubmit}
+                            disabled={isPreponingBooking || !newArrivalTime}
+                        >
+                            {isPreponingBooking ? (
+                                <><i className="fas fa-spinner fa-spin"></i> Processing...</>
+                            ) : (
+                                <>Confirm Prepone</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // Add this helper function before your component
     const formatDateTime = (date) => {
         if (!date) return '';
@@ -1259,8 +1402,24 @@ const Home = () => {
                     {/* Only show action buttons if not completed */}
                     {statusClass !== 'completed' && statusClass !== 'cancelled' && (
                         <div className="booking-actions">
+                            {/* Add Prepone button for confirmed bookings that haven't started yet */}
+                            {booking.booking_status === 'CONFIRMED' && 
+                             !booking.arrived_time &&
+                             booking.payment_status === 'COMPLETED' && (
+                                <button 
+                                    className="action-btn prepone-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePreponeArrival(booking);
+                                    }}
+                                >
+                                    <i className="fas fa-clock"></i>
+                                    Prepone Arrival
+                                </button>
+                            )}
+                            
                             {booking.arrived_time && !booking.departed_time && booking.status !== 'allow' && (
-                            <button 
+                                <button 
                                     className="action-btn depart-btn"
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -1269,8 +1428,8 @@ const Home = () => {
                                 >
                                     <i className="fas fa-sign-out-alt"></i>
                                     Mark as Departed
-                            </button>
-                        )}
+                                </button>
+                            )}
                             
                             {/* Add the Extend Time button - only show for active bookings that aren't departed yet */}
                             {(booking.booking_status === 'CONFIRMED' || booking.arrived_time) && 
@@ -2340,6 +2499,7 @@ const Home = () => {
             {/* Render the extend booking modal */}
             {renderExtendBookingModal()}
             {renderExtendTimeModal()}
+            {renderPreponeModal()}
         </div>
     );
 };
