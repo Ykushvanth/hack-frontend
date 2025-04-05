@@ -50,7 +50,7 @@ class SignUp extends Component {
             delete signupData.showError;
             delete signupData.errorMsg;
 
-            const response = await fetch("http://localhost:3001/api/signup", {
+            const response = await fetch("https://exsel-backend-3.onrender.com/api/signup", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
