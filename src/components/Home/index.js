@@ -120,7 +120,7 @@ const Home = () => {
             }
 
             // First, check availability and get prepone info
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/prepone-arrival', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/prepone-arrival', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ const Home = () => {
             // If there's an additional cost, create a payment order
             if (preponeInfo.additional_cost > 0) {
                 // Create order for payment
-                const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-prepone-order', {
+                const orderResponse = await fetch('https://exsel-backend-4.onrender.com/api/create-prepone-order', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -173,7 +173,7 @@ const Home = () => {
                 await cashfree.redirect();
             } else {
                 // If no additional cost, directly confirm the prepone
-                const confirmResponse = await fetch('https://exsel-backend-3.onrender.com/api/confirm-prepone', {
+                const confirmResponse = await fetch('https://exsel-backend-4.onrender.com/api/confirm-prepone', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -363,7 +363,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `https://exsel-backend-3.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
+                `https://exsel-backend-4.onrender.com/api/parking-lots/${formData.state}/${formData.district}/${area}`
             );
             const data = await response.json();
 
@@ -638,7 +638,7 @@ const Home = () => {
             console.log('Sending booking request with data:', requestData);
 
             // First create the booking
-            const bookingResponse = await fetch('https://exsel-backend-3.onrender.com/api/book-slot', {
+            const bookingResponse = await fetch('https://exsel-backend-4.onrender.com/api/book-slot', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -666,7 +666,7 @@ const Home = () => {
             console.log('Booking created successfully:', bookingData);
 
             // Create Cashfree order
-            const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-order', {
+            const orderResponse = await fetch('https://exsel-backend-4.onrender.com/api/create-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -743,7 +743,7 @@ const Home = () => {
     // Add this function after the handleSubmit function and before the useEffect hooks
     const verifyPayment = async (orderId, bookingId) => {
         try {
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/verify-payment', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/verify-payment', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -779,7 +779,7 @@ const Home = () => {
     // Add this function after the verifyPayment function
     const verifyExtensionPayment = async (orderId, bookingId, extensionId) => {
         try {
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/verify-extension-payment', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/verify-extension-payment', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -842,7 +842,7 @@ const Home = () => {
                 setIsLoading(true);
                 const userId = localStorage.getItem('userData'); // Get the user ID
                 
-                const response = await fetch(`https://exsel-backend-3.onrender.com/api/user-details?userId=${userId}`, {
+                const response = await fetch(`https://exsel-backend-4.onrender.com/api/user-details?userId=${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${Cookies.get('jwt_token')}`
                     }
@@ -868,7 +868,7 @@ const Home = () => {
     useEffect(() => {
         const fetchStates = async () => {
             try {
-                const response = await fetch('https://exsel-backend-3.onrender.com/api/states');
+                const response = await fetch('https://exsel-backend-4.onrender.com/api/states');
                 const data = await response.json();
                 // Ensure we're setting an array
                 setLocations(prev => ({ ...prev, states: Array.isArray(data) ? data : [] }));
@@ -892,7 +892,7 @@ const Home = () => {
         }));
         
         try {
-            const response = await fetch(`https://exsel-backend-3.onrender.com/api/districts/${state}`);
+            const response = await fetch(`https://exsel-backend-4.onrender.com/api/districts/${state}`);
             const districts = await response.json();
             setLocations(prev => ({ 
                 ...prev, 
@@ -917,7 +917,7 @@ const Home = () => {
         
         try {
             const response = await fetch(
-                `https://exsel-backend-3.onrender.com/api/areas/${formData.state}/${district}`
+                `https://exsel-backend-4.onrender.com/api/areas/${formData.state}/${district}`
             );
             const areas = await response.json();
             setLocations(prev => ({ 
@@ -1207,7 +1207,7 @@ const Home = () => {
                 );
             }
             
-            const response = await fetch('https://exsel-backend-2.onrender.com/api/update-booking-status', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/update-booking-status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1921,7 +1921,7 @@ const Home = () => {
 
             console.log('Fetching booking history for user:', userDetails.id);
             
-            const response = await fetch(`https://exsel-backend-3.onrender.com/api/booking-history/${userDetails.id}`);
+            const response = await fetch(`https://exsel-backend-4.onrender.com/api/booking-history/${userDetails.id}`);
             const data = await response.json();
             
             if (!response.ok) {
@@ -1961,7 +1961,7 @@ const Home = () => {
     const fetchAvailableSlots = async (parkingLotId, date, time) => {
         try {
             const response = await fetch(
-                `https://exsel-backend-3.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
+                `https://exsel-backend-4.onrender.com/api/available-slots/${parkingLotId}/${date}/${time}`
             );
             const data = await response.json();
             if (response.ok) {
@@ -2007,7 +2007,7 @@ const Home = () => {
 
         setIsCheckingAvailability(true);
         try {
-            const response = await fetch('https://exsel-backend-3.onrender.com/api/check-slot-availability', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/check-slot-availability', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2118,7 +2118,7 @@ const Home = () => {
             console.log('Extending booking with data:', requestData);
             
             // Send the request to the backend
-            const response = await fetch('https://exsel-backend-2.onrender.com/api/extend-booking', {
+            const response = await fetch('https://exsel-backend-4.onrender.com/api/extend-booking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2294,7 +2294,7 @@ const Home = () => {
             console.log('Creating extension request with data:', extensionData);
             
             // First create the extension request
-            const extensionResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-extension-request', {
+            const extensionResponse = await fetch('https://exsel-backend-4.onrender.com/api/create-extension-request', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2325,7 +2325,7 @@ const Home = () => {
             console.log('Extension request created successfully:', extensionResult);
             
             // Now create a Cashfree order for the extension payment
-            const orderResponse = await fetch('https://exsel-backend-3.onrender.com/api/create-extension-order', {
+            const orderResponse = await fetch('https://exsel-backend-4.onrender.com/api/create-extension-order', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
