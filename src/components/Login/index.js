@@ -21,7 +21,7 @@ class Login extends Component {
     this.props.navigate("/")
   }
 
-  
+
   submitForm = async event => {
     event.preventDefault()
     const { username, password } = this.state
