@@ -67,7 +67,7 @@ const PaymentStatus = () => {
 
                 // Redirect after 5 seconds on error
                 setTimeout(() => {
-                    navigate('/dashboard');
+                    navigate('/');
                 }, 5000);
             }
         };
