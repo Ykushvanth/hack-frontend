@@ -58,7 +58,7 @@ const PaymentStatus = () => {
 
                 // Redirect after 3 seconds
                 setTimeout(() => {
-                    navigate('/dashboard');
+                    navigate('/');
                 }, 3000);
             } catch (error) {
                 console.error('Payment verification error:', error);
